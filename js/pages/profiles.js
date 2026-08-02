@@ -4,6 +4,12 @@ import { openModal, closeModal, confirmDialog } from "../components/modal.js";
 import { icons } from "../components/icons.js";
 import { escapeHtml } from "../utils.js";
 
+function syncCurrentProfile() {
+  import("../sync.js")
+    .then(({ evaluateSyncForCurrentProfile }) => evaluateSyncForCurrentProfile())
+    .catch(() => {});
+}
+
 export function renderProfiles(main) {
   let editMode = false;
 
@@ -47,6 +53,7 @@ export function renderProfiles(main) {
     main.querySelectorAll("[data-select]").forEach((el) =>
       el.addEventListener("click", () => {
         setCurrentProfileId(el.dataset.select);
+        syncCurrentProfile();
         navigate("/dashboard");
       })
     );
@@ -94,6 +101,7 @@ export function renderProfiles(main) {
       const profile = createProfile(name);
       closeModal();
       setCurrentProfileId(profile.id);
+      syncCurrentProfile();
       navigate("/dashboard");
     };
     card.querySelector("#create-btn").addEventListener("click", submit);

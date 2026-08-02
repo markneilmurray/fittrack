@@ -105,6 +105,31 @@ export function getCurrentProfile() {
   return listProfiles().find((p) => p.id === id) || null;
 }
 
+// ---- Cloud sync linking (identity only — the actual data sync lives in sync.js) ----
+
+export function linkProfileToCloud(profileId, uid, email) {
+  const profiles = listProfiles();
+  const p = profiles.find((p) => p.id === profileId);
+  if (!p) return;
+  p.cloudUid = uid;
+  p.cloudEmail = email;
+  writeJson(PROFILES_KEY, profiles);
+}
+
+export function unlinkProfileFromCloud(profileId) {
+  const profiles = listProfiles();
+  const p = profiles.find((p) => p.id === profileId);
+  if (!p) return;
+  delete p.cloudUid;
+  delete p.cloudEmail;
+  writeJson(PROFILES_KEY, profiles);
+}
+
+export function getProfileCloudInfo(profileId) {
+  const p = listProfiles().find((p) => p.id === profileId);
+  return p && p.cloudUid ? { uid: p.cloudUid, email: p.cloudEmail } : null;
+}
+
 // ---- Profile data (cached in memory, written through to localStorage) ----
 
 let cache = null;
@@ -119,12 +144,32 @@ function ensureCache() {
   return cache;
 }
 
+let changeListener = null;
+// sync.js registers itself here so every local write can be mirrored to
+// the cloud (when the active profile is linked) without store.js needing
+// to know anything about Firebase.
+export function onDataChange(fn) {
+  changeListener = fn;
+}
+
 function persist() {
   writeJson(dataKey(cacheId), cache);
+  if (changeListener) changeListener(cacheId, cache);
 }
 
 export function getData() {
   return ensureCache();
+}
+
+// Overwrites the active profile's entire data blob — used when pulling a
+// cloud backup down (either an explicit "use cloud version" choice, or an
+// incoming realtime update from another device).
+export function replaceCurrentProfileData(newData) {
+  const id = getCurrentProfileId();
+  if (!id) return;
+  cache = { ...emptyProfileData(), ...newData };
+  cacheId = id;
+  writeJson(dataKey(id), cache);
 }
 
 export function updateSettings(patch) {

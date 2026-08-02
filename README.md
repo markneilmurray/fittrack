@@ -1,17 +1,18 @@
 # FitTrack
 
-A personal fitness app that runs entirely in your browser — plan and log strength & cardio workouts, track body weight, and log food, with everything stored locally on your device. No backend, no build step, no account.
+A personal fitness app that runs entirely in your browser — plan and log strength & cardio workouts, track body weight, and log food. Works fully offline with no backend and no build step; optionally backs up and syncs to your own Firebase project if you want your data to follow you across devices.
 
 ## Features
 
-- **Exercise library** — 75 exercises across chest, back, shoulders, arms, legs, core and cardio, each with a real photo, step-by-step instructions and target muscles (sourced from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db) project).
-- **Session builder** — start from a Push/Pull/Legs/Upper/Lower/Full Body/Core/Cardio template or build a custom session, with sensible default sets & reps you can adjust.
+- **Exercise library** — 75 exercises across chest, back, shoulders, arms, legs, core and cardio, each with a real photo, step-by-step instructions and target muscles (sourced from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db) project). Star any exercise to favourite it.
+- **Session builder** — start from a Push/Pull/Legs/Upper/Lower/Full Body/Core/Cardio template or build a custom session, with sensible default sets & reps you can adjust. Edit a template's exercises once and it's remembered as the new default for next time — a "reset to default" link is always there if you want the original back.
 - **Workout logging** — log weight and reps per set, with the weight/duration you did **last time** shown as a reminder so you know what to beat.
 - **Strength/cardio balance** — the home screen tracks your weekly strength vs. cardio session count against your goals and nudges you if things are lopsided.
 - **Calendar check-off** — tap any day to mark it a workout day or a rest day, see your streak and monthly totals.
 - **Body weight tracking** — log weigh-ins, see a trend chart, set a goal weight.
 - **Food log** — log meals with calories and macros against a daily goal, with an optional photo attached purely as your own visual reference (no AI estimation — see below).
 - **Multiple profiles** — anyone using this device/browser can create their own profile; everyone's workouts, food log and weight history stay separate.
+- **Optional cloud sync** — link a profile to a Google account (via your own Firebase project) to back it up and keep it in sync across devices. Entirely opt-in — the app works fully offline without it.
 - **Works offline** — installable as a PWA ("Add to Home Screen"), and exercises you've already viewed keep working without a connection.
 
 ## Why no food-photo calorie estimation?
@@ -45,13 +46,41 @@ Then open `http://localhost:8420`. That's it — no `npm install`.
 
 No GitHub Actions or build pipeline needed — it's just static files.
 
+## Cloud sync (optional)
+
+By default everything lives only in the browser (see below). If you'd like a profile's data to survive a lost phone or follow you to a second device, you can link it to a Google account:
+
+1. Go to **More → Cloud sync → Sign in with Google** from within that profile.
+2. First time signing in with that Google account, it pushes this device's data up. Signing in again later (e.g. on a second device) offers a choice: use the cloud version, or keep this device's version.
+3. From then on, changes sync automatically in the background (a few seconds after you stop making them), and updates made on another device appear here live.
+
+This app is wired up to a Firebase project already (see `js/firebaseConfig.js`). If you fork this and want your **own** Firebase project instead:
+
+1. In the [Firebase console](https://console.firebase.google.com), create a project (free Spark plan), then **Project settings → Your apps → add a web app** to get a `firebaseConfig` object. Paste it into `js/firebaseConfig.js`.
+2. **Authentication → Sign-in method** → enable **Google**.
+3. **Firestore Database** → create a database.
+4. **Firestore → Rules** → publish:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /fittrack_profiles/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+5. **Authentication → Settings → Authorized domains** → add the domain you deploy to (e.g. `yourname.github.io`) — `localhost` is allowed by default, so local testing works without this step.
+
+If a profile is never linked, none of this is used — the app doesn't touch the network for anything except loading exercise photos and (if linked) syncing.
+
 ## Data & privacy
 
-Everything (profiles, workouts, weights, food log, reference photos) is stored only in your browser via `localStorage` and `IndexedDB` — nothing is sent anywhere. That also means:
+By default, everything (profiles, workouts, weights, food log, reference photos) is stored only in your browser via `localStorage` and `IndexedDB` — nothing is sent anywhere. That also means:
 
-- Data is per-browser, not per-account — it won't sync between your phone and laptop.
-- Clearing your browser's site data for this app deletes everything.
-- Use **More → Backup → Export data** regularly to download a JSON backup, and **Import** to restore it (including on a different device).
+- Data is per-browser, not per-account — it won't sync between your phone and laptop, unless you link a profile to Google (see **Cloud sync** above).
+- Clearing your browser's site data for this app deletes everything not synced to the cloud.
+- Use **More → Backup → Export data** regularly to download a JSON backup, and **Import** to restore it (including on a different device) — this works whether or not you use cloud sync.
 
 ## Project structure
 
@@ -65,6 +94,9 @@ js/
   router.js                Tiny hash-based router
   store.js                 All data persistence (profiles, sessions, weight, food)
   db.js                    IndexedDB wrapper for optional food photos
+  firebaseConfig.js        Your Firebase project config (safe to be public)
+  firebase.js              Thin Firebase Auth/Firestore wrapper (loaded from CDN)
+  sync.js                  Links a profile to Google & keeps it mirrored to Firestore
   data/exercises.js        Curated exercise data
   data/templates.js        Workout templates (Push/Pull/Legs/...)
   components/               Reusable UI: nav, modal, toast, charts, icons

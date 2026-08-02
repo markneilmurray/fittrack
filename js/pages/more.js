@@ -5,7 +5,26 @@ import { openModal, closeModal, confirmDialog } from "../components/modal.js";
 import { toast } from "../components/toast.js";
 import { escapeHtml } from "../utils.js";
 
+const STATUS_LABEL = {
+  off: "Not linked",
+  "linked-elsewhere": "Signed into a different Google account",
+  syncing: "Syncing…",
+  synced: "Synced",
+  error: "Sync error — will retry",
+};
+
 export function renderMore(main) {
+  let syncMod = null;
+  let unsubscribeStatus = null;
+
+  import("../sync.js")
+    .then((m) => {
+      syncMod = m;
+      unsubscribeStatus = m.onSyncStatusChange(() => draw());
+      draw();
+    })
+    .catch(() => draw());
+
   function draw() {
     const profile = getCurrentProfile();
     const data = getData();
@@ -23,6 +42,13 @@ export function renderMore(main) {
       <div class="row section" style="gap:10px;">
         <button class="btn btn-secondary btn-block" id="switch-btn">Switch profile</button>
         <button class="btn btn-icon" id="delete-profile-btn" title="Delete profile" style="background:var(--danger-tint); color:var(--danger);">${icons.trash}</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title mb-8">Cloud sync</div>
+        <div class="card">
+          ${cloudSyncBody(profile, syncMod)}
+        </div>
       </div>
 
       <div class="section">
@@ -87,6 +113,7 @@ export function renderMore(main) {
 
     document.getElementById("rename-btn").addEventListener("click", () => openRenameModal(profile));
     document.getElementById("switch-btn").addEventListener("click", () => navigate("/profiles"));
+    wireCloudSyncButtons(profile);
     document.getElementById("delete-profile-btn").addEventListener("click", async () => {
       const ok = await confirmDialog(`Delete <strong>${escapeHtml(profile.name)}</strong>? This permanently removes all their data.`);
       if (ok) {
@@ -143,6 +170,104 @@ export function renderMore(main) {
     });
   }
 
+  function cloudSyncBody(profile, mod) {
+    if (!mod) {
+      return `<p class="small muted">Loading…</p>`;
+    }
+    if (!profile.cloudUid) {
+      return `
+        <p class="small muted mb-12">Back up ${escapeHtml(profile.name)}'s data and sync it across devices with a Google account.</p>
+        <button class="btn btn-secondary btn-block" id="link-google-btn">${icons.upload} Sign in with Google</button>
+      `;
+    }
+    const status = mod.getSyncStatus();
+    const statusColor =
+      status === "synced" ? "var(--success)" : status === "error" ? "var(--danger)" : status === "syncing" ? "var(--primary)" : "var(--text-muted)";
+    return `
+      <div class="row-between mb-8">
+        <div>
+          <div style="font-weight:700; color:${statusColor};">${STATUS_LABEL[status] || status}</div>
+          <div class="small muted">${escapeHtml(profile.cloudEmail || "")}</div>
+        </div>
+      </div>
+      ${
+        status === "linked-elsewhere"
+          ? `<button class="btn btn-secondary btn-block mb-8" id="link-google-btn">${icons.upload} Sign in with Google</button>`
+          : ""
+      }
+      <div class="row" style="gap:8px;">
+        <button class="btn btn-secondary btn-block" id="signout-google-btn">Sign out of Google</button>
+        <button class="btn btn-ghost" id="unlink-btn">Unlink</button>
+      </div>
+    `;
+  }
+
+  function wireCloudSyncButtons(profile) {
+    document.getElementById("link-google-btn")?.addEventListener("click", async (e) => {
+      if (!syncMod) return;
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "Opening Google sign-in…";
+      try {
+        const result = await syncMod.startLinkCurrentProfile();
+        if (result.status === "conflict") {
+          openConflictModal(result);
+        } else {
+          toast(`Synced as ${result.email}`, { type: "success" });
+          draw();
+        }
+      } catch (err) {
+        console.error(err);
+        if (err?.code !== "auth/popup-closed-by-user" && err?.code !== "auth/cancelled-popup-request") {
+          toast("Couldn't sign in with Google", { type: "danger" });
+        }
+        draw();
+      }
+    });
+    document.getElementById("signout-google-btn")?.addEventListener("click", async () => {
+      if (!syncMod) return;
+      await syncMod.signOutOfGoogle();
+      toast("Signed out of Google");
+      draw();
+    });
+    document.getElementById("unlink-btn")?.addEventListener("click", async () => {
+      const ok = await confirmDialog(
+        "Stop syncing this profile? Your data stays on this device, but won't back up or sync until you link it again.",
+        { okLabel: "Unlink", danger: false }
+      );
+      if (ok && syncMod) {
+        await syncMod.unlinkCurrentProfile();
+        draw();
+      }
+    });
+  }
+
+  function openConflictModal({ uid, email, remote }) {
+    const card = openModal(
+      `
+      <div class="modal-title">Existing cloud data found</div>
+      <p class="modal-message">Signed in as <strong>${escapeHtml(email)}</strong>, which already has data synced from another device. Which version do you want to keep?</p>
+      <div class="stack">
+        <button class="btn btn-primary btn-block" id="use-cloud-btn">Use the cloud version</button>
+        <button class="btn btn-secondary btn-block" id="use-local-btn">Keep this device's version</button>
+        <button class="btn btn-ghost btn-block" data-close-modal>Cancel</button>
+      </div>
+    `
+    );
+    card.querySelector("#use-cloud-btn").addEventListener("click", async () => {
+      closeModal();
+      await syncMod.resolveLinkConflict("cloud", { uid, email, remote });
+      toast("Cloud data restored to this device", { type: "success" });
+      draw();
+    });
+    card.querySelector("#use-local-btn").addEventListener("click", async () => {
+      closeModal();
+      await syncMod.resolveLinkConflict("local", { uid, email, remote });
+      toast("This device is now the synced version", { type: "success" });
+      draw();
+    });
+  }
+
   function openRenameModal(profile) {
     const card = openModal(
       `
@@ -164,6 +289,4 @@ export function renderMore(main) {
       }
     });
   }
-
-  draw();
 }

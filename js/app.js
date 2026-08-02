@@ -10,6 +10,13 @@ if (savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
 
 seedDefaultProfilesIfNeeded();
 
+// Cloud sync is entirely optional and needs the network (Firebase SDK is
+// fetched from a CDN) — loaded dynamically so the app still works offline
+// or if that fetch fails.
+import("./sync.js")
+  .then(({ initSync }) => initSync())
+  .catch((e) => console.warn("Cloud sync unavailable:", e));
+
 function requireProfile(handler) {
   return async (params) => {
     if (!getCurrentProfileId()) {

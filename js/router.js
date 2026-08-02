@@ -59,3 +59,9 @@ export function startRouter() {
   window.addEventListener("hashchange", dispatch);
   dispatch();
 }
+
+// Re-renders whatever route is currently showing — used after a background
+// sync pulls in remote changes, so the open page reflects them immediately.
+export function refreshCurrentRoute() {
+  dispatch();
+}
