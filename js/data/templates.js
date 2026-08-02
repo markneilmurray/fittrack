@@ -1,0 +1,97 @@
+// Suggested session templates. Each references exercise IDs from exercises.js.
+// Users can freely add/remove exercises after picking a template.
+export const TEMPLATES = [
+  {
+    id: "push",
+    name: "Push Day",
+    blurb: "Chest, shoulders, triceps",
+    type: "strength",
+    exerciseIds: [
+      "Barbell_Bench_Press_-_Medium_Grip",
+      "Incline_Dumbbell_Press",
+      "Standing_Military_Press",
+      "Side_Lateral_Raise",
+      "Triceps_Pushdown",
+    ],
+  },
+  {
+    id: "pull",
+    name: "Pull Day",
+    blurb: "Back, biceps",
+    type: "strength",
+    exerciseIds: [
+      "Pullups",
+      "Bent_Over_Barbell_Row",
+      "Seated_Cable_Rows",
+      "Face_Pull",
+      "Barbell_Curl",
+      "Hammer_Curls",
+    ],
+  },
+  {
+    id: "legs",
+    name: "Leg Day",
+    blurb: "Quads, hamstrings, glutes, calves",
+    type: "strength",
+    exerciseIds: [
+      "Barbell_Squat",
+      "Romanian_Deadlift",
+      "Leg_Press",
+      "Leg_Extensions",
+      "Standing_Calf_Raises",
+    ],
+  },
+  {
+    id: "upper",
+    name: "Upper Body",
+    blurb: "Full upper body, one session",
+    type: "strength",
+    exerciseIds: [
+      "Dumbbell_Bench_Press",
+      "Bent_Over_Barbell_Row",
+      "Dumbbell_Shoulder_Press",
+      "Barbell_Curl",
+      "Triceps_Pushdown",
+    ],
+  },
+  {
+    id: "lower",
+    name: "Lower Body",
+    blurb: "Full lower body, one session",
+    type: "strength",
+    exerciseIds: [
+      "Barbell_Squat",
+      "Barbell_Lunge",
+      "Lying_Leg_Curls",
+      "Barbell_Hip_Thrust",
+      "Seated_Calf_Raise",
+    ],
+  },
+  {
+    id: "full-body",
+    name: "Full Body",
+    blurb: "One exercise per major group",
+    type: "strength",
+    exerciseIds: [
+      "Barbell_Squat",
+      "Dumbbell_Bench_Press",
+      "Bent_Over_Barbell_Row",
+      "Standing_Military_Press",
+      "Plank",
+    ],
+  },
+  {
+    id: "core",
+    name: "Core",
+    blurb: "Abs and midline",
+    type: "strength",
+    exerciseIds: ["Plank", "Crunches", "Russian_Twist", "Hanging_Leg_Raise", "Cable_Crunch"],
+  },
+  {
+    id: "cardio",
+    name: "Cardio",
+    blurb: "Steady state or intervals",
+    type: "cardio",
+    exerciseIds: ["Running_Treadmill", "Rope_Jumping", "Bicycling_Stationary"],
+  },
+];
