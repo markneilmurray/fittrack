@@ -1,6 +1,14 @@
 import { EXERCISES } from "../data/exercises.js";
 import { TEMPLATES } from "../data/templates.js";
-import { getData, setDraft, clearDraft } from "../store.js";
+import {
+  getData,
+  setDraft,
+  clearDraft,
+  getCustomTemplate,
+  saveCustomTemplateFromDraft,
+  resetCustomTemplate,
+  isTemplateCustomized,
+} from "../store.js";
 import { navigate } from "../router.js";
 import { icons } from "../components/icons.js";
 import { confirmDialog } from "../components/modal.js";
@@ -10,26 +18,31 @@ function exerciseOf(id) {
   return EXERCISES.find((e) => e.id === id);
 }
 
+function exerciseEntry(id, item) {
+  const ex = exerciseOf(id);
+  if (ex.category === "cardio") {
+    return { exerciseId: id, type: "cardio", durationMin: item?.durationMin ?? ex.default.durationMin, distanceKm: null };
+  }
+  const setCount = item?.setCount ?? ex.default.sets ?? 3;
+  return {
+    exerciseId: id,
+    type: "strength",
+    targetReps: ex.default.reps,
+    sets: Array.from({ length: setCount }, () => ({ weight: "", reps: "", done: false })),
+  };
+}
+
 function buildFromTemplate(templateId) {
   const t = TEMPLATES.find((x) => x.id === templateId);
   if (!t) return null;
+  const custom = getCustomTemplate(templateId);
+  const list = custom ? custom.exercises : t.exerciseIds.map((id) => ({ exerciseId: id }));
   return {
     date: todayStr(),
     name: t.name,
     status: "building",
-    exercises: t.exerciseIds.map((id) => {
-      const ex = exerciseOf(id);
-      if (ex.category === "cardio") {
-        return { exerciseId: id, type: "cardio", durationMin: ex.default.durationMin, distanceKm: null };
-      }
-      const setCount = ex.default.sets || 3;
-      return {
-        exerciseId: id,
-        type: "strength",
-        targetReps: ex.default.reps,
-        sets: Array.from({ length: setCount }, () => ({ weight: "", reps: "", done: false })),
-      };
-    }),
+    templateId,
+    exercises: list.map((item) => exerciseEntry(item.exerciseId, item)),
   };
 }
 
@@ -48,12 +61,26 @@ export function renderSessionBuild(main, query = {}) {
     setDraft(draft);
   }
 
+  // Only real exercise-list edits (remove, add, change set count/duration)
+  // call this — renaming the session or just opening the default template
+  // never marks it customized.
+  function persistAndSyncTemplate() {
+    setDraft(draft);
+    saveCustomTemplateFromDraft(draft);
+  }
+
   function draw() {
     main.innerHTML = `
       <div class="field">
         <label>Session name</label>
         <input class="input" id="session-name" value="${escapeHtml(draft.name)}" maxlength="40" />
       </div>
+
+      ${
+        draft.templateId && isTemplateCustomized(draft.templateId)
+          ? `<p class="small muted mb-12"><span style="vertical-align:-3px;">${icons.refresh}</span> Remembered from last time — <button class="link-btn" id="reset-template-btn" style="font-size:inherit;">reset to default</button></p>`
+          : ""
+      }
 
       <div class="stack" id="ex-list">
         ${
@@ -113,7 +140,7 @@ export function renderSessionBuild(main, query = {}) {
     main.querySelectorAll("[data-remove]").forEach((btn) =>
       btn.addEventListener("click", () => {
         draft.exercises.splice(Number(btn.dataset.remove), 1);
-        persist();
+        persistAndSyncTemplate();
         draw();
       })
     );
@@ -121,7 +148,7 @@ export function renderSessionBuild(main, query = {}) {
       btn.addEventListener("click", () => {
         const e = draft.exercises[Number(btn.dataset.inc)];
         e.sets.push({ weight: "", reps: "", done: false });
-        persist();
+        persistAndSyncTemplate();
         draw();
       })
     );
@@ -129,14 +156,14 @@ export function renderSessionBuild(main, query = {}) {
       btn.addEventListener("click", () => {
         const e = draft.exercises[Number(btn.dataset.dec)];
         if (e.sets.length > 1) e.sets.pop();
-        persist();
+        persistAndSyncTemplate();
         draw();
       })
     );
     main.querySelectorAll("[data-duration]").forEach((input) =>
       input.addEventListener("input", () => {
         draft.exercises[Number(input.dataset.duration)].durationMin = Number(input.value) || 0;
-        persist();
+        persistAndSyncTemplate();
       })
     );
     document.getElementById("cancel-btn").addEventListener("click", async () => {
@@ -150,6 +177,17 @@ export function renderSessionBuild(main, query = {}) {
       draft.status = "active";
       persist();
       navigate("/session/active");
+    });
+    document.getElementById("reset-template-btn")?.addEventListener("click", async () => {
+      const ok = await confirmDialog("Reset this template back to its original exercise list?", {
+        okLabel: "Reset",
+        danger: false,
+      });
+      if (!ok) return;
+      resetCustomTemplate(draft.templateId);
+      draft = buildFromTemplate(draft.templateId);
+      setDraft(draft);
+      draw();
     });
   }
 

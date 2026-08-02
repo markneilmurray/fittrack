@@ -251,6 +251,16 @@ body.no-nav #app-nav { display: none; }
   overflow: hidden; display: flex; flex-direction: column;
 }
 .ex-card-img { width: 100%; aspect-ratio: 4/3; background: var(--surface-2); object-fit: cover; display: block; }
+.ex-card-media { position: relative; }
+.fav-btn {
+  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 999px;
+  background: rgba(20, 22, 26, 0.45); backdrop-filter: blur(2px); border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.fav-btn svg { width: 16px; height: 16px; }
+.fav-btn.active { color: #ffd23f; }
+.fav-btn-inline { color: var(--text-faint); }
+.fav-btn-inline.active { color: #f5b400; }
 .ex-card-body { padding: 10px 12px 12px; }
 .ex-card-name { font-size: 13.5px; font-weight: 700; line-height: 1.25; margin-bottom: 4px; }
 .ex-card-meta { font-size: 11.5px; color: var(--text-faint); }

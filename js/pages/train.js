@@ -1,6 +1,6 @@
 import { TEMPLATES } from "../data/templates.js";
 import { EXERCISES } from "../data/exercises.js";
-import { getData, setDraft } from "../store.js";
+import { getData, setDraft, isTemplateCustomized } from "../store.js";
 import { navigate } from "../router.js";
 import { icons } from "../components/icons.js";
 import { formatDate, escapeHtml } from "../utils.js";
@@ -31,7 +31,10 @@ export function renderTrain(main) {
         ${TEMPLATES.map(
           (t) => `
           <div class="template-card card-tap" data-template="${t.id}">
-            <span class="badge ${t.type === "cardio" ? "badge-cardio" : "badge-strength"}">${t.type}</span>
+            <div class="row-between" style="margin-bottom:8px;">
+              <span class="badge ${t.type === "cardio" ? "badge-cardio" : "badge-strength"}">${t.type}</span>
+              ${isTemplateCustomized(t.id) ? `<span class="badge badge-muted">Edited</span>` : ""}
+            </div>
             <div class="template-name">${t.name}</div>
             <div class="template-blurb">${t.blurb}</div>
           </div>

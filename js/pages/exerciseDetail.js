@@ -1,5 +1,5 @@
 import { EXERCISES } from "../data/exercises.js";
-import { getData, getLastPerformance, setDraft } from "../store.js";
+import { getData, getLastPerformance, setDraft, isFavorite, toggleFavorite } from "../store.js";
 import { navigate } from "../router.js";
 import { lineChart } from "../components/charts.js";
 import { icons } from "../components/icons.js";
@@ -37,7 +37,10 @@ export function renderExerciseDetail(main, id) {
     main.innerHTML = `
       <div class="row-between" style="margin-bottom:10px;">
         <button class="btn-icon" id="back-btn">${icons.chevronLeft}</button>
-        <span class="badge ${ex.category === "cardio" ? "badge-cardio" : "badge-strength"}">${titleCase(ex.category)}</span>
+        <div class="row" style="gap:8px;">
+          <span class="badge ${ex.category === "cardio" ? "badge-cardio" : "badge-strength"}">${titleCase(ex.category)}</span>
+          <button class="btn-icon fav-btn-inline ${isFavorite(ex.id) ? "active" : ""}" id="fav-btn" title="Favourite">${isFavorite(ex.id) ? icons.starFilled : icons.star}</button>
+        </div>
       </div>
       <div class="detail-img-wrap">
         <img class="detail-img" src="${ex.images[imgIndex] || ex.images[0]}" alt="${escapeHtml(ex.name)}" />
@@ -93,6 +96,10 @@ export function renderExerciseDetail(main, id) {
       })
     );
     document.getElementById("add-btn").addEventListener("click", addToDraft);
+    document.getElementById("fav-btn").addEventListener("click", () => {
+      toggleFavorite(ex.id);
+      draw();
+    });
   }
 
   function history_back() {

@@ -1,10 +1,12 @@
 import { EXERCISES } from "../data/exercises.js";
 import { navigate } from "../router.js";
-import { getLastPerformance, getData, setDraft } from "../store.js";
+import { getLastPerformance, getData, setDraft, isFavorite, toggleFavorite, saveCustomTemplateFromDraft } from "../store.js";
 import { escapeHtml, titleCase } from "../utils.js";
+import { icons } from "../components/icons.js";
 
 const GROUPS = [
   { id: "all", label: "All" },
+  { id: "favorites", label: `★ Favourites` },
   { id: "chest", label: "Chest" },
   { id: "back", label: "Back" },
   { id: "shoulders", label: "Shoulders" },
@@ -21,7 +23,11 @@ export function renderLibrary(main, query = {}) {
   let search = "";
 
   function matches(ex) {
-    if (activeGroup !== "all" && ex.group !== activeGroup) return false;
+    if (activeGroup === "favorites") {
+      if (!isFavorite(ex.id)) return false;
+    } else if (activeGroup !== "all" && ex.group !== activeGroup) {
+      return false;
+    }
     if (search) {
       const s = search.toLowerCase();
       if (!ex.name.toLowerCase().includes(s) && !ex.primaryMuscles.some((m) => m.includes(s))) return false;
@@ -32,9 +38,13 @@ export function renderLibrary(main, query = {}) {
   function cardHtml(ex) {
     const last = getLastPerformance(ex.id);
     const img = ex.images[0];
+    const fav = isFavorite(ex.id);
     return `
       <div class="ex-card card-tap" data-id="${ex.id}">
-        <img class="ex-card-img" src="${img}" alt="${escapeHtml(ex.name)}" loading="lazy" />
+        <div class="ex-card-media">
+          <img class="ex-card-img" src="${img}" alt="${escapeHtml(ex.name)}" loading="lazy" />
+          <button class="fav-btn ${fav ? "active" : ""}" data-fav="${ex.id}" title="Favourite">${fav ? icons.starFilled : icons.star}</button>
+        </div>
         <div class="ex-card-body">
           <div class="ex-card-name">${escapeHtml(ex.name)}</div>
           <div class="ex-card-meta">${ex.groupLabel}${last ? ` · last ${last.weight ?? last.durationMin + "m"}${last.weight ? " " + getData().settings.unit : ""}` : ""}</div>
@@ -45,6 +55,7 @@ export function renderLibrary(main, query = {}) {
 
   function draw() {
     const list = EXERCISES.filter(matches);
+    const emptyFavorites = activeGroup === "favorites" && list.length === 0;
     main.innerHTML = `
       ${picking ? `<p class="page-subtitle" style="margin-top:-4px;">Tap an exercise to add it to your session</p>` : ""}
       <div class="field" style="margin-bottom:12px;">
@@ -54,7 +65,11 @@ export function renderLibrary(main, query = {}) {
         ${GROUPS.map((g) => `<div class="chip ${g.id === activeGroup ? "active" : ""}" data-group="${g.id}">${g.label}</div>`).join("")}
       </div>
       <div class="ex-grid">
-        ${list.map(cardHtml).join("") || `<div class="empty-state" style="grid-column:1/-1;">No exercises match.</div>`}
+        ${
+          emptyFavorites
+            ? `<div class="empty-state" style="grid-column:1/-1;">${icons.star}<div class="empty-state-title">No favourites yet</div><p class="small">Tap the star on any exercise to save it here.</p></div>`
+            : list.map(cardHtml).join("") || `<div class="empty-state" style="grid-column:1/-1;">No exercises match.</div>`
+        }
       </div>
     `;
 
@@ -78,6 +93,13 @@ export function renderLibrary(main, query = {}) {
         } else {
           navigate(`/library/${card.dataset.id}`);
         }
+      })
+    );
+    main.querySelectorAll("[data-fav]").forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFavorite(btn.dataset.fav);
+        draw();
       })
     );
   }
@@ -104,6 +126,7 @@ export function renderLibrary(main, query = {}) {
       });
     }
     setDraft(draft);
+    saveCustomTemplateFromDraft(draft);
     navigate("/session/build");
   }
 

@@ -24,6 +24,8 @@ function emptyProfileData() {
     bodyWeight: [],
     food: [],
     draft: null,
+    favorites: [],
+    customTemplates: {},
   };
 }
 
@@ -130,6 +132,68 @@ export function updateSettings(patch) {
   d.settings = { ...d.settings, ...patch };
   persist();
   return d.settings;
+}
+
+// ---- Favorite exercises ----
+
+export function getFavorites() {
+  return ensureCache().favorites || [];
+}
+
+export function isFavorite(exerciseId) {
+  return getFavorites().includes(exerciseId);
+}
+
+export function toggleFavorite(exerciseId) {
+  const d = ensureCache();
+  d.favorites = d.favorites || [];
+  const idx = d.favorites.indexOf(exerciseId);
+  if (idx >= 0) d.favorites.splice(idx, 1);
+  else d.favorites.push(exerciseId);
+  persist();
+  return d.favorites.includes(exerciseId);
+}
+
+// ---- Custom templates ----
+// A template (Push Day, Pull Day, ...) starts from the built-in exercise
+// list in data/templates.js. As soon as a session built from a template is
+// edited (exercise added/removed, set count changed), that becomes the new
+// remembered version for that template — so "Push Day" next time reflects
+// what was actually trained last, not the generic starter list.
+
+export function getCustomTemplate(templateId) {
+  const d = ensureCache();
+  return (d.customTemplates && d.customTemplates[templateId]) || null;
+}
+
+export function isTemplateCustomized(templateId) {
+  return !!getCustomTemplate(templateId);
+}
+
+export function saveCustomTemplate(templateId, exercises) {
+  const d = ensureCache();
+  d.customTemplates = d.customTemplates || {};
+  d.customTemplates[templateId] = { exercises, updatedAt: new Date().toISOString() };
+  persist();
+}
+
+export function resetCustomTemplate(templateId) {
+  const d = ensureCache();
+  if (d.customTemplates) delete d.customTemplates[templateId];
+  persist();
+}
+
+// Called whenever a session built from a template is actually edited
+// (exercise added/removed, set count changed) — a no-op for sessions with
+// no templateId, so merely opening the default template never "customizes" it.
+export function saveCustomTemplateFromDraft(draft) {
+  if (!draft || !draft.templateId) return;
+  const list = draft.exercises.map((e) =>
+    e.type === "strength"
+      ? { exerciseId: e.exerciseId, type: "strength", setCount: e.sets.length }
+      : { exerciseId: e.exerciseId, type: "cardio", durationMin: e.durationMin }
+  );
+  saveCustomTemplate(draft.templateId, list);
 }
 
 // ---- Sessions ----

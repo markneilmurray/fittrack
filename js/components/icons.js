@@ -22,4 +22,7 @@ export const icons = {
   upload: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg>`,
   bed: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v3M2 8v10h20V13a3 3 0 0 0-3-3h-8V8a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M22 18v3"/><path d="M2 13h11"/></svg>`,
   water: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7 6.5 12a6.5 6.5 0 0 1-13 0c0-5 6.5-12 6.5-12Z"/></svg>`,
+  star: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l3.09 6.26 6.91 1.01-5 4.87 1.18 6.87L12 17.98l-6.18 3.53 1.18-6.87-5-4.87 6.91-1.01L12 2.5z"/></svg>`,
+  starFilled: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l3.09 6.26 6.91 1.01-5 4.87 1.18 6.87L12 17.98l-6.18 3.53 1.18-6.87-5-4.87 6.91-1.01L12 2.5z"/></svg>`,
+  refresh: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v6h-6"/></svg>`,
 };
