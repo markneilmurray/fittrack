@@ -107,3 +107,28 @@ export async function estimateMealFromPhoto(base64Data, mimeType) {
   if (typeof parsed.calories !== "number") throw new Error("Got an unexpected response — try again");
   return parsed;
 }
+
+const NAME_ESTIMATE_PROMPT = `You estimate calories for a personal food diary from a short food description —
+it may be vague or casual (e.g. "a cup of tea with milk", "2 slices of toast with butter", "a bourbon biscuit").
+Give your single best-guess estimate for a typical/standard portion — not a range.
+Respond with ONLY JSON, no other text, in exactly this shape:
+{"calories": number, "protein": number, "carbs": number, "fat": number}
+All macros are in grams, calories in kcal, whole numbers.
+If the description isn't a recognizable food or drink, respond with exactly: {"error": "not recognized"}
+Food: `;
+
+// Looks up an estimate from a plain-text description (e.g. "bourbon biscuit").
+export async function estimateMealFromText(query) {
+  const model = getCalorieModel();
+  const result = await model.generateContent(NAME_ESTIMATE_PROMPT + query);
+  const text = result.response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Couldn't read the estimate — try rewording it");
+  }
+  if (parsed.error) throw new Error("Couldn't recognize that — try being more specific");
+  if (typeof parsed.calories !== "number") throw new Error("Got an unexpected response — try again");
+  return parsed;
+}

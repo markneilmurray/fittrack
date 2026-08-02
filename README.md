@@ -10,7 +10,7 @@ A personal fitness app that runs entirely in your browser — plan and log stren
 - **Strength/cardio balance** — the home screen tracks your weekly strength vs. cardio session count against your goals and nudges you if things are lopsided.
 - **Calendar check-off** — tap any day to mark it a workout day or a rest day, see your streak and monthly totals.
 - **Body weight tracking** — log weigh-ins, see a trend chart, set a goal weight.
-- **Food log** — log meals with calories and macros against a daily goal. Optionally attach a photo purely as your own visual reference (kept on-device), or tap **"Estimate from a photo"** to have AI fill in a calorie/macro guess from a picture — that photo is sent once for the estimate and never saved anywhere (see **AI meal estimate** below).
+- **Food log** — log meals with calories and macros against a daily goal. Type what you ate and tap **"Look up calories for this"** for an AI estimate (handles casual descriptions like "a bourbon biscuit" or "cup of tea with milk"), or tap **"Estimate from a photo"** to do the same from a picture instead — the photo is sent once for the estimate and never saved anywhere. You can also attach a photo purely as your own visual reference (kept on-device, no AI involved). See **AI meal estimate** below.
 - **Multiple profiles** — anyone using this device/browser can create their own profile; everyone's workouts, food log and weight history stay separate.
 - **Optional cloud sync** — link a profile to a Google account (via your own Firebase project) to back it up and keep it in sync across devices. Entirely opt-in — the app works fully offline without it.
 - **Works offline** — installable as a PWA ("Add to Home Screen"), and exercises you've already viewed keep working without a connection.
@@ -72,7 +72,11 @@ If a profile is never linked, none of this is used — the app doesn't touch the
 
 ## AI meal estimate (optional)
 
-In the "Add food" form, **"Estimate from a photo"** sends a photo to Gemini (via [Firebase AI Logic](https://firebase.google.com/docs/ai-logic)) and fills in a calorie/macro guess. The photo is only ever sent for that one request — it's never uploaded to Firestore or saved anywhere, and it's discarded as soon as the estimate comes back. It's a rough guess (no model can know your real portion size), so always glance over the filled-in numbers before saving.
+In the "Add food" form, two options send a description to Gemini (via [Firebase AI Logic](https://firebase.google.com/docs/ai-logic)) and fill in a calorie/macro guess:
+- **"Look up calories for this"** — uses whatever's typed in the Food/meal field (e.g. "a bourbon biscuit", "cup of tea with milk").
+- **"Estimate from a photo"** — same idea from a picture instead. The photo is only ever sent for that one request — it's never uploaded to Firestore or saved anywhere, and it's discarded as soon as the estimate comes back.
+
+Either way it's a rough guess (no model can know your exact portion or recipe), so always glance over the filled-in numbers before saving.
 
 This needs one more one-time step in the Firebase console (separate from Cloud sync above, and only needed once):
 

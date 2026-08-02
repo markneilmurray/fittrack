@@ -6,6 +6,20 @@ import { openModal, closeModal, confirmDialog } from "../components/modal.js";
 import { icons } from "../components/icons.js";
 import { toast } from "../components/toast.js";
 
+function friendlyAiError(err, fallback) {
+  if (err.code === "api-not-enabled" || /firebasevertexai\.googleapis\.com/.test(err.message || "")) {
+    return "AI estimates aren't turned on yet for this project";
+  }
+  if (err.code === "AI/permission-denied" || err.code === "permission-denied") {
+    return "Not allowed to use AI estimates right now";
+  }
+  if (/network/i.test(err.message || "")) {
+    return "Couldn't reach the estimator — check your connection";
+  }
+  if (err.message && err.message.length < 80) return err.message;
+  return fallback;
+}
+
 export function renderFood(main) {
   let viewDate = todayStr();
 
@@ -112,7 +126,8 @@ export function renderFood(main) {
       </div>
       <div class="field">
         <label>Food / meal</label>
-        <input class="input" id="f-name" placeholder="e.g. Chicken salad" />
+        <input class="input" id="f-name" placeholder="e.g. Chicken salad, a bourbon biscuit, cup of tea" />
+        <button type="button" class="link-btn mt-8" id="lookup-btn" style="text-align:left; font-size:13px;">${icons.sparkle} Look up calories for this</button>
       </div>
       <div class="input-row">
         <div class="field"><label>Calories</label><input class="input" id="f-cal" type="number" min="0" inputmode="numeric" /></div>
@@ -155,20 +170,39 @@ export function renderFood(main) {
           toast("Estimate filled in — check it looks right", { type: "success" });
         } catch (err) {
           console.error(err);
-          const friendly =
-            err.code === "api-not-enabled" || /firebasevertexai\.googleapis\.com/.test(err.message || "")
-              ? "AI estimates aren't turned on yet for this project"
-              : err.code === "AI/permission-denied" || err.code === "permission-denied"
-              ? "Not allowed to use AI estimates right now"
-              : /network/i.test(err.message || "")
-              ? "Couldn't reach the estimator — check your connection"
-              : err.message && err.message.length < 80
-              ? err.message
-              : "Couldn't estimate that photo — try again or enter it manually";
-          toast(friendly, { type: "danger" });
+          toast(friendlyAiError(err, "Couldn't estimate that photo — try again or enter it manually"), { type: "danger" });
         } finally {
           aiBtn.disabled = false;
           aiBtn.innerHTML = aiBtnLabel;
+        }
+      });
+
+      const lookupBtn = card.querySelector("#lookup-btn");
+      const lookupBtnLabel = lookupBtn.innerHTML;
+      const nameInput = card.querySelector("#f-name");
+      lookupBtn.addEventListener("click", async () => {
+        const query = nameInput.value.trim();
+        if (!query) {
+          nameInput.focus();
+          toast("Type what you ate first");
+          return;
+        }
+        lookupBtn.disabled = true;
+        lookupBtn.innerHTML = `${icons.sparkle} Looking up…`;
+        try {
+          const { estimateMealFromText } = await import("../firebase.js");
+          const est = await estimateMealFromText(query);
+          card.querySelector("#f-cal").value = est.calories ?? "";
+          card.querySelector("#f-protein").value = est.protein ?? "";
+          card.querySelector("#f-carbs").value = est.carbs ?? "";
+          card.querySelector("#f-fat").value = est.fat ?? "";
+          toast("Estimate filled in — check it looks right", { type: "success" });
+        } catch (err) {
+          console.error(err);
+          toast(friendlyAiError(err, "Couldn't look that up — try rewording or enter it manually"), { type: "danger" });
+        } finally {
+          lookupBtn.disabled = false;
+          lookupBtn.innerHTML = lookupBtnLabel;
         }
       });
 
