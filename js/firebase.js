@@ -52,10 +52,15 @@ export async function fetchRemoteProfile(uid) {
 }
 
 export async function pushRemoteProfile(uid, data) {
+  // data.updatedAtMs is the true "when did this content last change"
+  // timestamp from the local store — deliberately NOT overwritten here, so
+  // it survives pushes/pulls unchanged and stays comparable across devices
+  // and page reloads. pushedAtMs/updatedAt are separate, server-side-ish
+  // bookkeeping only (e.g. for a future "last synced" display).
   await setDoc(profileDocRef(uid), {
     ...data,
     updatedAt: serverTimestamp(),
-    updatedAtMs: Date.now(),
+    pushedAtMs: Date.now(),
   });
 }
 
@@ -65,15 +70,15 @@ export function listenRemoteProfile(uid, callback) {
   });
 }
 
-// ---- AI meal-photo calorie estimate (Firebase AI Logic → Gemini) ----
+// ---- Shared Gemini model (Firebase AI Logic) for all JSON-output features ----
 // Uses the Gemini Developer API backend specifically because it has a
 // free tier and works on Firebase's free Spark plan — the Vertex AI
 // backend would require upgrading to the paid Blaze plan.
-let calorieModel = null;
-function getCalorieModel() {
-  if (!calorieModel) {
+let jsonModel = null;
+function getJsonModel() {
+  if (!jsonModel) {
     const ai = getAI(app, { backend: new GoogleAIBackend() });
-    calorieModel = getGenerativeModel(ai, {
+    jsonModel = getGenerativeModel(ai, {
       // "-latest" alias so this doesn't go stale as Google rotates models
       // (a pinned version, e.g. gemini-2.0-flash, silently loses its free
       // quota once retired — that's what cost a lot of debugging here).
@@ -81,7 +86,7 @@ function getCalorieModel() {
       generationConfig: { responseMimeType: "application/json" },
     });
   }
-  return calorieModel;
+  return jsonModel;
 }
 
 const ESTIMATE_PROMPT = `You estimate calories for a personal food diary from a photo of a meal.
@@ -94,7 +99,7 @@ If the photo doesn't show identifiable food, respond with exactly: {"error": "no
 // Takes base64 image data (no data: prefix) — never uploaded or stored,
 // just sent for this one estimate and discarded by the caller.
 export async function estimateMealFromPhoto(base64Data, mimeType) {
-  const model = getCalorieModel();
+  const model = getJsonModel();
   const result = await model.generateContent([ESTIMATE_PROMPT, { inlineData: { mimeType, data: base64Data } }]);
   const text = result.response.text();
   let parsed;
@@ -119,7 +124,7 @@ Food: `;
 
 // Looks up an estimate from a plain-text description (e.g. "bourbon biscuit").
 export async function estimateMealFromText(query) {
-  const model = getCalorieModel();
+  const model = getJsonModel();
   const result = await model.generateContent(NAME_ESTIMATE_PROMPT + query);
   const text = result.response.text();
   let parsed;
@@ -130,5 +135,38 @@ export async function estimateMealFromText(query) {
   }
   if (parsed.error) throw new Error("Couldn't recognize that — try being more specific");
   if (typeof parsed.calories !== "number") throw new Error("Got an unexpected response — try again");
+  return parsed;
+}
+
+const INSIGHTS_PROMPT_PREFIX = `You are a supportive fitness & nutrition coach reviewing someone's own logged
+data from their personal tracking app, covering the last 7 days plus their recent body weight trend and goal.
+Give practical, encouraging, SPECIFIC suggestions grounded in the actual numbers below — reference real foods,
+actual session counts, actual weight change — not generic platitudes that could apply to anyone.
+You are not a doctor: no medical claims, no diagnoses, don't tell them to "consult a doctor" unless something in
+the data looks genuinely concerning (e.g. an extremely low calorie intake or a very rapid weight change).
+
+Respond with ONLY JSON, no other text, in exactly this shape:
+{"headline": "one short encouraging sentence summarizing where they're at", "suggestions": ["tip 1", "tip 2", "tip 3"]}
+Give 3 to 5 suggestions, each a single specific sentence.
+
+DATA:
+`;
+
+// summary is a plain-text block built from the person's own logged data
+// (see insights.js) — nothing here is saved or sent anywhere beyond this
+// one request.
+export async function generateWeeklyInsights(summary) {
+  const model = getJsonModel();
+  const result = await model.generateContent(INSIGHTS_PROMPT_PREFIX + summary);
+  const text = result.response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Couldn't generate insights — try again");
+  }
+  if (!parsed.headline || !Array.isArray(parsed.suggestions) || !parsed.suggestions.length) {
+    throw new Error("Got an unexpected response — try again");
+  }
   return parsed;
 }

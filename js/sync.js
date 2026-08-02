@@ -28,7 +28,7 @@ const PUSH_DEBOUNCE_MS = 2500;
 let unsubscribeSnapshot = null;
 let listeningUid = null;
 let pushTimer = null;
-let lastPushedAtMs = 0;
+let pendingPushProfileId = null;
 let statusListeners = [];
 
 // "off" | "linked-elsewhere" | "syncing" | "synced" | "error"
@@ -63,8 +63,21 @@ function startListening(uid) {
   stopListening();
   listeningUid = uid;
   unsubscribeSnapshot = listenRemoteProfile(uid, (remoteData) => {
-    // Skip echoes of our own recent push rather than re-applying them.
-    if (remoteData.updatedAtMs && remoteData.updatedAtMs <= lastPushedAtMs) return;
+    // Firestore fires this immediately with whatever's currently stored the
+    // moment we subscribe — including on every fresh page load — so this
+    // can't just trust "it came from the cloud, apply it". Compare against
+    // the local data's own persisted updatedAtMs (survives reloads, unlike
+    // a plain variable) and only accept the remote copy if it's genuinely
+    // newer. Equal timestamps means this is just our own last push echoing
+    // back — ignore it rather than re-applying (and don't show a toast for
+    // your own change). If local is strictly ahead, the cloud is stale —
+    // push to reconcile it instead of silently doing nothing.
+    const localUpdatedAt = getData().updatedAtMs || 0;
+    const remoteUpdatedAt = remoteData.updatedAtMs || 0;
+    if (remoteUpdatedAt <= localUpdatedAt) {
+      if (localUpdatedAt > remoteUpdatedAt) schedulePush(getCurrentProfileId());
+      return;
+    }
     replaceCurrentProfileData(remoteData);
     refreshCurrentRoute();
     toast("Synced changes from another device", { type: "success" });
@@ -76,18 +89,36 @@ function schedulePush(profileId) {
   const info = getProfileCloudInfo(profileId);
   if (!info || !auth.currentUser || auth.currentUser.uid !== info.uid) return;
   setStatus("syncing");
+  pendingPushProfileId = profileId;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(async () => {
-    try {
-      await pushRemoteProfile(info.uid, getData());
-      lastPushedAtMs = Date.now();
-      setStatus("synced");
-    } catch (e) {
-      console.error(e);
-      setStatus("error");
-      toast("Couldn't sync — check your connection", { type: "danger" });
+  pushTimer = setTimeout(() => flushPush(profileId), PUSH_DEBOUNCE_MS);
+}
+
+async function flushPush(profileId) {
+  clearTimeout(pushTimer);
+  if (pendingPushProfileId === profileId) pendingPushProfileId = null;
+  const info = getProfileCloudInfo(profileId);
+  if (!info || !auth.currentUser || auth.currentUser.uid !== info.uid) return;
+  try {
+    await pushRemoteProfile(info.uid, getData());
+    setStatus("synced");
+  } catch (e) {
+    console.error(e);
+    setStatus("error");
+    toast("Couldn't sync — check your connection", { type: "danger" });
+  }
+}
+
+// If the tab/app is being backgrounded or closed while a debounced push is
+// still pending, flush it immediately rather than risk losing up to
+// PUSH_DEBOUNCE_MS of changes — this is what let a stale cloud copy
+// overwrite same-day local entries on next open before this fix.
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && pendingPushProfileId) {
+      flushPush(pendingPushProfileId);
     }
-  }, PUSH_DEBOUNCE_MS);
+  });
 }
 
 // Re-checks whether the currently active local profile should be syncing,
@@ -131,7 +162,6 @@ export async function startLinkCurrentProfile() {
   }
   linkProfileToCloud(getCurrentProfileId(), user.uid, user.email);
   await pushRemoteProfile(user.uid, getData());
-  lastPushedAtMs = Date.now();
   startListening(user.uid);
   setStatus("synced");
   return { status: "linked", email: user.email };
@@ -144,7 +174,6 @@ export async function resolveLinkConflict(choice, { uid, email, remote }) {
     refreshCurrentRoute();
   } else {
     await pushRemoteProfile(uid, getData());
-    lastPushedAtMs = Date.now();
   }
   startListening(uid);
   setStatus("synced");

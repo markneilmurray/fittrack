@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fittrack-v6";
+const CACHE_VERSION = "fittrack-v8";
 const IMAGE_CACHE = "fittrack-images-v1";
 
 const PRECACHE_URLS = [
@@ -17,6 +17,8 @@ const PRECACHE_URLS = [
   "./js/firebaseConfig.js",
   "./js/firebase.js",
   "./js/sync.js",
+  "./js/insights.js",
+  "./js/aiError.js",
   "./js/components/charts.js",
   "./js/components/icons.js",
   "./js/components/modal.js",

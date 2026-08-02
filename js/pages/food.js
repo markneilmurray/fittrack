@@ -5,20 +5,7 @@ import { ring } from "../components/charts.js";
 import { openModal, closeModal, confirmDialog } from "../components/modal.js";
 import { icons } from "../components/icons.js";
 import { toast } from "../components/toast.js";
-
-function friendlyAiError(err, fallback) {
-  if (err.code === "api-not-enabled" || /firebasevertexai\.googleapis\.com/.test(err.message || "")) {
-    return "AI estimates aren't turned on yet for this project";
-  }
-  if (err.code === "AI/permission-denied" || err.code === "permission-denied") {
-    return "Not allowed to use AI estimates right now";
-  }
-  if (/network/i.test(err.message || "")) {
-    return "Couldn't reach the estimator — check your connection";
-  }
-  if (err.message && err.message.length < 80) return err.message;
-  return fallback;
-}
+import { friendlyAiError } from "../aiError.js";
 
 export function renderFood(main) {
   let viewDate = todayStr();

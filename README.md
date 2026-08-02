@@ -11,6 +11,7 @@ A personal fitness app that runs entirely in your browser — plan and log stren
 - **Calendar check-off** — tap any day to mark it a workout day or a rest day, see your streak and monthly totals.
 - **Body weight tracking** — log weigh-ins, see a trend chart, set a goal weight.
 - **Food log** — log meals with calories and macros against a daily goal. Type what you ate and tap **"Look up calories for this"** for an AI estimate (handles casual descriptions like "a bourbon biscuit" or "cup of tea with milk"), or tap **"Estimate from a photo"** to do the same from a picture instead — the photo is sent once for the estimate and never saved anywhere. You can also attach a photo purely as your own visual reference (kept on-device, no AI involved). See **AI meal estimate** below.
+- **Weekly insights** — on the home screen, "Get this week's insights" turns your last 7 days of food and training plus your body weight trend into a short, specific set of AI suggestions — including a rough weeks-to-goal estimate if you've set a goal weight.
 - **Multiple profiles** — anyone using this device/browser can create their own profile; everyone's workouts, food log and weight history stay separate.
 - **Optional cloud sync** — link a profile to a Google account (via your own Firebase project) to back it up and keep it in sync across devices. Entirely opt-in — the app works fully offline without it.
 - **Works offline** — installable as a PWA ("Add to Home Screen"), and exercises you've already viewed keep working without a connection.
@@ -93,9 +94,21 @@ No further code changes needed — `js/firebase.js` already calls it via `Google
 2. **Check the project was actually imported into [Google AI Studio](https://aistudio.google.com/apikey)** (API Keys → Import projects) — this is where the free-tier grant is actually issued; Firebase's own "Get started" flow doesn't always complete this.
 3. **Check the model hasn't been retired.** A `limit: 0` error is also what you get for a deprecated/retired model (e.g. `gemini-2.0-flash` and `gemini-1.5-flash` both eventually return this rather than a clearer "model retired" message) — this was the actual cause the one time this was debugged. Using the `-latest` alias (as this code does) avoids the problem recurring, since it always points at whichever model Google currently recommends.
 
+## Weekly insights (optional)
+
+The **"Get this week's insights"** card on the home screen computes plain stats from your own logged data — no AI involved for this part, so it's always accurate and free:
+- Average daily calories/protein on days you actually logged food (not silently penalized for days you forgot to log).
+- Strength/cardio session counts this week vs. your goals.
+- Body weight trend (kg or lb per week) from your last ~4 weeks of weigh-ins.
+- If you've set a goal weight (Body weight → the pencil icon next to your latest entry): distance to it, and — only if your current trend is actually moving toward it — a rough weeks-to-goal estimate.
+
+Those stats are then handed to Gemini (same AI Logic connection as the food estimates) to turn into 3-5 short, specific suggestions plus a one-line headline. Nothing here is saved anywhere except the summary numbers themselves (in your own profile data) — the suggestions text is cached locally so it's not silently regenerated (and re-billed) every time you open the app; tap **Refresh** for a new one anytime.
+
+This is general encouragement based on your own numbers, not medical or professional advice — the prompt explicitly avoids diagnoses and medical claims, but always use judgement, especially around rapid weight changes.
+
 ## Data & privacy
 
-By default, everything (profiles, workouts, weights, food log, reference photos) is stored only in your browser via `localStorage` and `IndexedDB` — nothing is sent anywhere. That also means:
+By default, everything (profiles, workouts, weights, food log) is stored only in your browser via `localStorage` — nothing is sent anywhere. That also means:
 
 - Data is per-browser, not per-account — it won't sync between your phone and laptop, unless you link a profile to Google (see **Cloud sync** above).
 - Clearing your browser's site data for this app deletes everything not synced to the cloud.
@@ -112,10 +125,12 @@ js/
   app.js                  Entry point & routes
   router.js                Tiny hash-based router
   store.js                 All data persistence (profiles, sessions, weight, food)
-  db.js                    IndexedDB wrapper for optional food photos
+  db.js                    Image compression/encoding helpers for the AI estimate photo flows
   firebaseConfig.js        Your Firebase project config (safe to be public)
   firebase.js              Thin Firebase Auth/Firestore/AI Logic wrapper (loaded from CDN)
   sync.js                  Links a profile to Google & keeps it mirrored to Firestore
+  insights.js              Computes weekly stats & drives the AI suggestions
+  aiError.js               Shared "make this Gemini error readable" helper
   data/exercises.js        Curated exercise data
   data/templates.js        Workout templates (Push/Pull/Legs/...)
   components/               Reusable UI: nav, modal, toast, charts, icons

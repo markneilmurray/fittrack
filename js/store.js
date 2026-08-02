@@ -26,6 +26,12 @@ function emptyProfileData() {
     draft: null,
     favorites: [],
     customTemplates: {},
+    lastInsights: null,
+    // When this profile's data last changed locally — persisted (unlike a
+    // module variable) so sync.js can correctly tell "local is newer than
+    // the cloud" even right after a fresh page load, before anything has
+    // been pushed yet in this session.
+    updatedAtMs: 0,
   };
 }
 
@@ -153,6 +159,7 @@ export function onDataChange(fn) {
 }
 
 function persist() {
+  cache.updatedAtMs = Date.now();
   writeJson(dataKey(cacheId), cache);
   if (changeListener) changeListener(cacheId, cache);
 }
@@ -335,6 +342,19 @@ export function updateFoodEntry(id, patch) {
   const entry = d.food.find((e) => e.id === id);
   if (entry) Object.assign(entry, patch);
   persist();
+}
+
+// ---- Weekly AI insights (cached so it's not regenerated on every visit) ----
+
+export function getInsights() {
+  return ensureCache().lastInsights;
+}
+
+export function saveInsights(insights) {
+  const d = ensureCache();
+  d.lastInsights = { ...insights, generatedAt: new Date().toISOString() };
+  persist();
+  return d.lastInsights;
 }
 
 // ---- Draft session (in-progress session being built or logged) ----

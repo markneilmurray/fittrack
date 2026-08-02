@@ -4,7 +4,34 @@ import { navigate } from "../router.js";
 import { ring, lineChart } from "../components/charts.js";
 import { icons } from "../components/icons.js";
 import { toast } from "../components/toast.js";
+import { friendlyAiError } from "../aiError.js";
 import { escapeHtml } from "../utils.js";
+
+function insightsBody(insights) {
+  if (!insights) {
+    return `
+      <p class="small muted mb-12">A quick read on this week's training and food, with a few personalized suggestions — including progress toward your goal weight if you've set one.</p>
+      <button class="btn btn-primary btn-block" id="insights-btn">${icons.sparkle} Get this week's insights</button>
+    `;
+  }
+  const ageMs = Date.now() - new Date(insights.generatedAt).getTime();
+  const ageLabel =
+    ageMs < 60 * 60 * 1000
+      ? "just now"
+      : ageMs < 24 * 60 * 60 * 1000
+      ? `${Math.max(1, Math.round(ageMs / (60 * 60 * 1000)))}h ago`
+      : `${Math.round(ageMs / (24 * 60 * 60 * 1000))}d ago`;
+  return `
+    <div style="font-weight:800; font-size:15px; margin-bottom:10px;">${escapeHtml(insights.headline)}</div>
+    <ul style="padding-left:18px; margin:0; display:flex; flex-direction:column; gap:8px;">
+      ${insights.suggestions.map((s) => `<li class="small">${escapeHtml(s)}</li>`).join("")}
+    </ul>
+    <div class="row-between mt-16">
+      <span class="small faint">Generated ${ageLabel}</span>
+      <button class="link-btn" id="insights-btn" style="font-size:13px;">${icons.refresh} Refresh</button>
+    </div>
+  `;
+}
 
 function computeStreak(calendar) {
   let streak = 0;
@@ -150,6 +177,11 @@ export function renderDashboard(main) {
     </div>
 
     <div class="section">
+      <div class="section-head"><div class="section-title">Weekly insights</div></div>
+      <div class="card">${insightsBody(data.lastInsights)}</div>
+    </div>
+
+    <div class="section">
       <div class="section-head">
         <div class="section-title">Quick start</div>
         <a href="#/train" class="section-link">All templates</a>
@@ -172,4 +204,21 @@ export function renderDashboard(main) {
   main.querySelectorAll("[data-quick]").forEach((btn) =>
     btn.addEventListener("click", () => navigate(`/session/build?template=${btn.dataset.quick}`))
   );
+
+  document.getElementById("insights-btn")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `${icons.sparkle} Thinking…`;
+    try {
+      const { generateInsights } = await import("../insights.js");
+      await generateInsights(data);
+      renderDashboard(main);
+    } catch (err) {
+      console.error(err);
+      toast(friendlyAiError(err, "Couldn't generate insights — try again shortly"), { type: "danger" });
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  });
 }
