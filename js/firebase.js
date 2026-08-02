@@ -74,7 +74,10 @@ function getCalorieModel() {
   if (!calorieModel) {
     const ai = getAI(app, { backend: new GoogleAIBackend() });
     calorieModel = getGenerativeModel(ai, {
-      model: "gemini-2.0-flash",
+      // "-latest" alias so this doesn't go stale as Google rotates models
+      // (a pinned version, e.g. gemini-2.0-flash, silently loses its free
+      // quota once retired — that's what cost a lot of debugging here).
+      model: "gemini-flash-latest",
       generationConfig: { responseMimeType: "application/json" },
     });
   }

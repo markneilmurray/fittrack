@@ -80,9 +80,14 @@ This needs one more one-time step in the Firebase console (separate from Cloud s
 2. When asked which API to use, choose **Gemini Developer API** — not "Vertex AI Gemini API". This matters: the Developer API has a free tier and works on the free Spark plan; Vertex AI requires upgrading to the paid Blaze plan for the same thing.
 3. Follow the prompts to enable it (Firebase handles provisioning the API access itself — no key to copy into this code).
 
-No further code changes needed — `js/firebase.js` already calls it via `GoogleAIBackend`. If you see an `AI/api-not-enabled` error, this step hasn't finished propagating yet (can take a few minutes) or wasn't completed.
+No further code changes needed — `js/firebase.js` already calls it via `GoogleAIBackend`, using the `gemini-flash-latest` model alias (deliberately not a pinned version like `gemini-2.0-flash` — see troubleshooting below for why).
 
 **Cost:** the Gemini Developer API's free tier comfortably covers casual personal use (a handful of photos a day). Past that, it's fractions of a cent per image.
+
+**Troubleshooting "no quota" errors:** if calls fail with a quota error showing `limit: 0` even after enabling AI Logic, in order of likelihood:
+1. **Wait longer.** Enabling the API and provisioning its free-tier quota are separate steps on Google's end; the second can lag behind the first.
+2. **Check the project was actually imported into [Google AI Studio](https://aistudio.google.com/apikey)** (API Keys → Import projects) — this is where the free-tier grant is actually issued; Firebase's own "Get started" flow doesn't always complete this.
+3. **Check the model hasn't been retired.** A `limit: 0` error is also what you get for a deprecated/retired model (e.g. `gemini-2.0-flash` and `gemini-1.5-flash` both eventually return this rather than a clearer "model retired" message) — this was the actual cause the one time this was debugged. Using the `-latest` alias (as this code does) avoids the problem recurring, since it always points at whichever model Google currently recommends.
 
 ## Data & privacy
 
