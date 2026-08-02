@@ -3,6 +3,9 @@
 // AI-written set of suggestions grounded in those stats. Nothing here is
 // sent anywhere except the one summarize-and-suggest request to Gemini.
 import { todayStr, addDays } from "./utils.js";
+import { EXERCISES } from "./data/exercises.js";
+
+const exerciseName = (id) => EXERCISES.find((e) => e.id === id)?.name || id;
 
 const TREND_WINDOW_DAYS = 28;
 
@@ -48,16 +51,36 @@ export function computeWeeklySummary(data) {
     }
   }
 
+  // Actual items eaten, oldest first — this is what lets the AI say "cut
+  // back on X" or "Y was a good call" instead of only talking in totals.
+  const foodItems = [...weekFood]
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""))
+    .map((f) => ({ date: f.date, name: f.name, calories: Number(f.calories) || 0 }));
+
+  const strengthExerciseNames = weekSessions
+    .filter((s) => s.type === "strength" || s.type === "mixed")
+    .flatMap((s) => (s.exercises || []).map((e) => e.exerciseId))
+    .filter(Boolean)
+    .map(exerciseName);
+  const cardioExerciseNames = weekSessions
+    .filter((s) => s.type === "cardio" || s.type === "mixed")
+    .flatMap((s) => (s.exercises || []).map((e) => e.exerciseId))
+    .filter(Boolean)
+    .map(exerciseName);
+
   return {
     unit: data.settings.unit,
     daysLogged,
     avgCaloriesPerLoggedDay,
     avgProteinPerLoggedDay,
     calorieGoal: data.settings.calorieGoal || null,
+    foodItems,
     strengthCount,
     cardioCount,
     strengthGoal: data.settings.weeklyStrengthGoal,
     cardioGoal: data.settings.weeklyCardioGoal,
+    strengthExerciseNames,
+    cardioExerciseNames,
     restDaysLogged,
     currentWeight: latest ? latest.weight : null,
     goalWeight,
@@ -77,9 +100,17 @@ function summaryToText(s) {
         (s.calorieGoal ? ` Their daily calorie goal is ${s.calorieGoal} kcal.` : " No calorie goal set.")
     );
   }
+  if (s.foodItems.length) {
+    lines.push("Everything logged this week, oldest first:");
+    for (const item of s.foodItems) {
+      lines.push(`- [${item.date.slice(5)}] ${item.name} (${item.calories} kcal)`);
+    }
+  }
   lines.push(
     `This week: ${s.strengthCount} strength session(s) (goal ${s.strengthGoal}), ${s.cardioCount} cardio session(s) (goal ${s.cardioGoal}), ${s.restDaysLogged} rest day(s) logged.`
   );
+  if (s.strengthExerciseNames.length) lines.push(`Strength exercises done: ${s.strengthExerciseNames.join(", ")}.`);
+  if (s.cardioExerciseNames.length) lines.push(`Cardio done: ${s.cardioExerciseNames.join(", ")}.`);
   if (s.currentWeight != null) {
     lines.push(`Current weight: ${s.currentWeight} ${s.unit}.`);
     if (s.weightRatePerWeek != null) {

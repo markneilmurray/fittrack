@@ -140,8 +140,15 @@ export async function estimateMealFromText(query) {
 
 const INSIGHTS_PROMPT_PREFIX = `You are a supportive fitness & nutrition coach reviewing someone's own logged
 data from their personal tracking app, covering the last 7 days plus their recent body weight trend and goal.
-Give practical, encouraging, SPECIFIC suggestions grounded in the actual numbers below — reference real foods,
-actual session counts, actual weight change — not generic platitudes that could apply to anyone.
+Give practical, encouraging, SPECIFIC suggestions grounded in the actual data below — not generic platitudes
+that could apply to anyone. In particular, your suggestions MUST include, whenever the data below supports it:
+- At least one suggestion that names SPECIFIC foods from the logged list — call out items that are working
+  against their calorie/weight goal (e.g. naming a high-calorie item and suggesting a lighter swap or smaller
+  portion) and/or foods that were good choices worth repeating. Don't just talk about calorie totals in the
+  abstract — use the actual food names.
+- At least one suggestion about their strength vs. cardio balance — whether they should shift toward more
+  cardio, more strength work, or keep the current split, based on their actual session counts vs. their goals
+  and (if trying to lose weight) which mix best supports that.
 You are not a doctor: no medical claims, no diagnoses, don't tell them to "consult a doctor" unless something in
 the data looks genuinely concerning (e.g. an extremely low calorie intake or a very rapid weight change).
 
