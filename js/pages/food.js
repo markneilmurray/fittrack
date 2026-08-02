@@ -1,6 +1,6 @@
 import { getData, addFoodEntry, deleteFoodEntry } from "../store.js";
-import { savePhoto, getPhoto, deletePhoto, compressImage, blobToBase64 } from "../db.js";
-import { todayStr, addDays, formatDate, uid, escapeHtml } from "../utils.js";
+import { compressImage, blobToBase64 } from "../db.js";
+import { todayStr, addDays, formatDate, escapeHtml } from "../utils.js";
 import { ring } from "../components/charts.js";
 import { openModal, closeModal, confirmDialog } from "../components/modal.js";
 import { icons } from "../components/icons.js";
@@ -59,7 +59,6 @@ export function renderFood(main) {
                   .map(
                     (e) => `
               <div class="list-item">
-                ${e.photoId ? `<img class="list-item-thumb" data-photo="${e.photoId}" alt="" />` : `<div class="list-item-thumb"></div>`}
                 <div class="list-item-body">
                   <div class="list-item-title">${escapeHtml(e.name)}</div>
                   <div class="list-item-sub">${e.calories || 0} kcal${e.time ? " · " + e.time : ""}</div>
@@ -92,43 +91,28 @@ export function renderFood(main) {
       btn.addEventListener("click", async () => {
         const ok = await confirmDialog("Delete this entry?");
         if (ok) {
-          const entry = entries.find((e) => e.id === btn.dataset.delete);
-          if (entry?.photoId) deletePhoto(entry.photoId).catch(() => {});
           deleteFoodEntry(btn.dataset.delete);
           draw();
         }
       })
     );
-    // async-load photo thumbnails from IndexedDB
-    main.querySelectorAll("[data-photo]").forEach(async (img) => {
-      const blob = await getPhoto(img.dataset.photo).catch(() => null);
-      if (blob) img.src = URL.createObjectURL(blob);
-    });
   }
 
   function openAddModal() {
-    let photoBlob = null;
     const card = openModal(
       `
       <div class="modal-title">Add food</div>
       <div class="field">
-        <button type="button" class="btn btn-secondary btn-block" id="ai-estimate-btn">${icons.sparkle} Estimate from a photo</button>
-        <input type="file" accept="image/*" capture="environment" id="ai-photo-input" style="display:none;" />
-        <p class="small faint mt-8" style="margin-bottom:0;">Sent once for an estimate, not saved. Rough guess — check the fields below before saving.</p>
-      </div>
-      <div class="field">
-        <label>Photo (optional, just for your own reference)</label>
-        <div class="photo-input-wrap">
-          <button type="button" class="photo-btn" id="photo-btn">${icons.camera}<span class="small">Add a photo</span></button>
-          <img class="photo-preview" id="photo-preview" style="display:none;" />
-          <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none;" />
-        </div>
-      </div>
-      <div class="field">
         <label>Food / meal</label>
         <input class="input" id="f-name" placeholder="e.g. Chicken salad, a bourbon biscuit, cup of tea" />
-        <button type="button" class="link-btn mt-8" id="lookup-btn" style="text-align:left; font-size:13px;">${icons.sparkle} Look up calories for this</button>
       </div>
+      <button type="button" class="btn btn-primary btn-block" id="lookup-btn">${icons.sparkle} Look up calories for this</button>
+      <p class="small faint mt-8 mb-12">Uses AI, nothing saved but the numbers. Rough guess — check the fields below.</p>
+
+      <button type="button" class="btn btn-secondary btn-block" id="ai-estimate-btn">${icons.camera} Estimate from a photo instead</button>
+      <input type="file" accept="image/*" capture="environment" id="ai-photo-input" style="display:none;" />
+      <p class="small faint mt-8 mb-12">Photo is sent once for the estimate and never saved anywhere.</p>
+
       <div class="input-row">
         <div class="field"><label>Calories</label><input class="input" id="f-cal" type="number" min="0" inputmode="numeric" /></div>
         <div class="field"><label>Time</label><input class="input" id="f-time" type="time" value="${new Date().toTimeString().slice(0, 5)}" /></div>
@@ -147,39 +131,10 @@ export function renderFood(main) {
     );
 
     function setup(card) {
-      const aiBtn = card.querySelector("#ai-estimate-btn");
-      const aiInput = card.querySelector("#ai-photo-input");
-      const aiBtnLabel = aiBtn.innerHTML;
-      aiBtn.addEventListener("click", () => aiInput.click());
-      aiInput.addEventListener("change", async () => {
-        const file = aiInput.files[0];
-        aiInput.value = "";
-        if (!file) return;
-        aiBtn.disabled = true;
-        aiBtn.innerHTML = `${icons.sparkle} Estimating…`;
-        try {
-          const compressed = await compressImage(file, 800, 0.7);
-          const base64 = await blobToBase64(compressed);
-          const { estimateMealFromPhoto } = await import("../firebase.js");
-          const est = await estimateMealFromPhoto(base64, "image/jpeg");
-          card.querySelector("#f-name").value = est.name || "";
-          card.querySelector("#f-cal").value = est.calories ?? "";
-          card.querySelector("#f-protein").value = est.protein ?? "";
-          card.querySelector("#f-carbs").value = est.carbs ?? "";
-          card.querySelector("#f-fat").value = est.fat ?? "";
-          toast("Estimate filled in — check it looks right", { type: "success" });
-        } catch (err) {
-          console.error(err);
-          toast(friendlyAiError(err, "Couldn't estimate that photo — try again or enter it manually"), { type: "danger" });
-        } finally {
-          aiBtn.disabled = false;
-          aiBtn.innerHTML = aiBtnLabel;
-        }
-      });
+      const nameInput = card.querySelector("#f-name");
 
       const lookupBtn = card.querySelector("#lookup-btn");
       const lookupBtnLabel = lookupBtn.innerHTML;
-      const nameInput = card.querySelector("#f-name");
       lookupBtn.addEventListener("click", async () => {
         const query = nameInput.value.trim();
         if (!query) {
@@ -206,26 +161,40 @@ export function renderFood(main) {
         }
       });
 
-      const photoBtn = card.querySelector("#photo-btn");
-      const photoInput = card.querySelector("#photo-input");
-      const preview = card.querySelector("#photo-preview");
-      photoBtn.addEventListener("click", () => photoInput.click());
-      photoInput.addEventListener("change", async () => {
-        const file = photoInput.files[0];
+      const aiBtn = card.querySelector("#ai-estimate-btn");
+      const aiInput = card.querySelector("#ai-photo-input");
+      const aiBtnLabel = aiBtn.innerHTML;
+      aiBtn.addEventListener("click", () => aiInput.click());
+      aiInput.addEventListener("change", async () => {
+        const file = aiInput.files[0];
+        aiInput.value = "";
         if (!file) return;
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = `${icons.sparkle} Estimating…`;
         try {
-          photoBlob = await compressImage(file);
-          preview.src = URL.createObjectURL(photoBlob);
-          preview.style.display = "block";
-          photoBtn.style.display = "none";
-        } catch {
-          toast("Could not read that photo", { type: "danger" });
+          const compressed = await compressImage(file, 800, 0.7);
+          const base64 = await blobToBase64(compressed);
+          const { estimateMealFromPhoto } = await import("../firebase.js");
+          const est = await estimateMealFromPhoto(base64, "image/jpeg");
+          nameInput.value = est.name || "";
+          card.querySelector("#f-cal").value = est.calories ?? "";
+          card.querySelector("#f-protein").value = est.protein ?? "";
+          card.querySelector("#f-carbs").value = est.carbs ?? "";
+          card.querySelector("#f-fat").value = est.fat ?? "";
+          toast("Estimate filled in — check it looks right", { type: "success" });
+        } catch (err) {
+          console.error(err);
+          toast(friendlyAiError(err, "Couldn't estimate that photo — try again or enter it manually"), { type: "danger" });
+        } finally {
+          aiBtn.disabled = false;
+          aiBtn.innerHTML = aiBtnLabel;
         }
       });
+
       card.querySelector("#save-food").addEventListener("click", async () => {
-        const name = card.querySelector("#f-name").value.trim();
+        const name = nameInput.value.trim();
         if (!name) {
-          card.querySelector("#f-name").focus();
+          nameInput.focus();
           return;
         }
         const entry = {
@@ -237,11 +206,6 @@ export function renderFood(main) {
           fat: card.querySelector("#f-fat").value || 0,
           time: card.querySelector("#f-time").value,
         };
-        if (photoBlob) {
-          const photoId = uid();
-          await savePhoto(photoId, photoBlob);
-          entry.photoId = photoId;
-        }
         addFoodEntry(entry);
         closeModal();
         draw();
