@@ -1,5 +1,5 @@
 import { getData, addFoodEntry, deleteFoodEntry } from "../store.js";
-import { savePhoto, getPhoto, deletePhoto, compressImage } from "../db.js";
+import { savePhoto, getPhoto, deletePhoto, compressImage, blobToBase64 } from "../db.js";
 import { todayStr, addDays, formatDate, uid, escapeHtml } from "../utils.js";
 import { ring } from "../components/charts.js";
 import { openModal, closeModal, confirmDialog } from "../components/modal.js";
@@ -98,6 +98,11 @@ export function renderFood(main) {
       `
       <div class="modal-title">Add food</div>
       <div class="field">
+        <button type="button" class="btn btn-secondary btn-block" id="ai-estimate-btn">${icons.sparkle} Estimate from a photo</button>
+        <input type="file" accept="image/*" capture="environment" id="ai-photo-input" style="display:none;" />
+        <p class="small faint mt-8" style="margin-bottom:0;">Sent once for an estimate, not saved. Rough guess — check the fields below before saving.</p>
+      </div>
+      <div class="field">
         <label>Photo (optional, just for your own reference)</label>
         <div class="photo-input-wrap">
           <button type="button" class="photo-btn" id="photo-btn">${icons.camera}<span class="small">Add a photo</span></button>
@@ -127,6 +132,46 @@ export function renderFood(main) {
     );
 
     function setup(card) {
+      const aiBtn = card.querySelector("#ai-estimate-btn");
+      const aiInput = card.querySelector("#ai-photo-input");
+      const aiBtnLabel = aiBtn.innerHTML;
+      aiBtn.addEventListener("click", () => aiInput.click());
+      aiInput.addEventListener("change", async () => {
+        const file = aiInput.files[0];
+        aiInput.value = "";
+        if (!file) return;
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = `${icons.sparkle} Estimating…`;
+        try {
+          const compressed = await compressImage(file, 800, 0.7);
+          const base64 = await blobToBase64(compressed);
+          const { estimateMealFromPhoto } = await import("../firebase.js");
+          const est = await estimateMealFromPhoto(base64, "image/jpeg");
+          card.querySelector("#f-name").value = est.name || "";
+          card.querySelector("#f-cal").value = est.calories ?? "";
+          card.querySelector("#f-protein").value = est.protein ?? "";
+          card.querySelector("#f-carbs").value = est.carbs ?? "";
+          card.querySelector("#f-fat").value = est.fat ?? "";
+          toast("Estimate filled in — check it looks right", { type: "success" });
+        } catch (err) {
+          console.error(err);
+          const friendly =
+            err.code === "api-not-enabled" || /firebasevertexai\.googleapis\.com/.test(err.message || "")
+              ? "AI estimates aren't turned on yet for this project"
+              : err.code === "AI/permission-denied" || err.code === "permission-denied"
+              ? "Not allowed to use AI estimates right now"
+              : /network/i.test(err.message || "")
+              ? "Couldn't reach the estimator — check your connection"
+              : err.message && err.message.length < 80
+              ? err.message
+              : "Couldn't estimate that photo — try again or enter it manually";
+          toast(friendly, { type: "danger" });
+        } finally {
+          aiBtn.disabled = false;
+          aiBtn.innerHTML = aiBtnLabel;
+        }
+      });
+
       const photoBtn = card.querySelector("#photo-btn");
       const photoInput = card.querySelector("#photo-input");
       const preview = card.querySelector("#photo-preview");

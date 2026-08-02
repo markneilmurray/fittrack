@@ -1,13 +1,15 @@
 // Thin wrapper around the Firebase modular SDK, loaded straight from
 // Google's CDN as ES modules — no build step, no npm install.
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+// (Import specifiers must be literal strings — keep these four in sync by
+// hand if the SDK version ever needs bumping.)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
 import {
   getFirestore,
   doc,
@@ -15,7 +17,12 @@ import {
   setDoc,
   onSnapshot,
   serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+import {
+  getAI,
+  GoogleAIBackend,
+  getGenerativeModel,
+} from "https://www.gstatic.com/firebasejs/11.9.0/firebase-ai.js";
 import { firebaseConfig, SYNC_COLLECTION } from "./firebaseConfig.js";
 
 const app = initializeApp(firebaseConfig);
@@ -56,4 +63,44 @@ export function listenRemoteProfile(uid, callback) {
   return onSnapshot(profileDocRef(uid), (snap) => {
     if (snap.exists()) callback(snap.data());
   });
+}
+
+// ---- AI meal-photo calorie estimate (Firebase AI Logic → Gemini) ----
+// Uses the Gemini Developer API backend specifically because it has a
+// free tier and works on Firebase's free Spark plan — the Vertex AI
+// backend would require upgrading to the paid Blaze plan.
+let calorieModel = null;
+function getCalorieModel() {
+  if (!calorieModel) {
+    const ai = getAI(app, { backend: new GoogleAIBackend() });
+    calorieModel = getGenerativeModel(ai, {
+      model: "gemini-2.0-flash",
+      generationConfig: { responseMimeType: "application/json" },
+    });
+  }
+  return calorieModel;
+}
+
+const ESTIMATE_PROMPT = `You estimate calories for a personal food diary from a photo of a meal.
+Look at the photo and give your single best-guess estimate — not a range — for a typical portion as shown.
+Respond with ONLY JSON, no other text, in exactly this shape:
+{"name": "short dish name", "calories": number, "protein": number, "carbs": number, "fat": number}
+All macros are in grams, calories in kcal, whole numbers.
+If the photo doesn't show identifiable food, respond with exactly: {"error": "no food detected"}`;
+
+// Takes base64 image data (no data: prefix) — never uploaded or stored,
+// just sent for this one estimate and discarded by the caller.
+export async function estimateMealFromPhoto(base64Data, mimeType) {
+  const model = getCalorieModel();
+  const result = await model.generateContent([ESTIMATE_PROMPT, { inlineData: { mimeType, data: base64Data } }]);
+  const text = result.response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Couldn't read the estimate — try a clearer photo");
+  }
+  if (parsed.error) throw new Error("Couldn't spot food in that photo — try a clearer angle");
+  if (typeof parsed.calories !== "number") throw new Error("Got an unexpected response — try again");
+  return parsed;
 }

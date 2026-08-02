@@ -80,3 +80,14 @@ export function compressImage(file, maxDim = 900, quality = 0.75) {
     img.src = url;
   });
 }
+
+// Reads a blob as base64 (no "data:...;base64," prefix) — used to send a
+// photo to the AI calorie estimator without ever writing it to disk.
+export function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
