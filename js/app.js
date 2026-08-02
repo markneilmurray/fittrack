@@ -1,12 +1,14 @@
 import { route, notFound, startRouter, navigate } from "./router.js";
 import { renderNav, renderHeader, updateNavActive } from "./components/nav.js";
-import { getCurrentProfileId, getCurrentProfile } from "./store.js";
+import { getCurrentProfileId, getCurrentProfile, seedDefaultProfilesIfNeeded } from "./store.js";
 
 const main = document.getElementById("app-main");
 
 // ---- theme ----
 const savedTheme = localStorage.getItem("fittrack:theme");
 if (savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
+
+seedDefaultProfilesIfNeeded();
 
 function requireProfile(handler) {
   return async (params) => {
@@ -25,10 +27,10 @@ function shell({ nav = true, header = true, title } = {}) {
   if (nav) updateNavActive();
 }
 
-route(
-  "/",
-  requireProfile(() => navigate("/dashboard"))
-);
+// The homepage always lives at "/" — opening the app fresh (or tapping the
+// FitTrack logo) lands here so whoever picks up the device can choose their
+// own profile, rather than silently continuing as whoever used it last.
+route("/", () => navigate("/profiles"));
 
 route(
   "/profiles",

@@ -2,7 +2,10 @@ import { uid, todayStr } from "./utils.js";
 
 const PROFILES_KEY = "fittrack:profiles";
 const CURRENT_KEY = "fittrack:currentProfile";
+const SEEDED_KEY = "fittrack:seeded";
 const dataKey = (id) => `fittrack:data:${id}`;
+
+const DEFAULT_PROFILE_NAMES = ["Mark", "Hannah"];
 
 const PROFILE_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#a855f7", "#06b6d4", "#ec4899"];
 
@@ -55,6 +58,16 @@ export function createProfile(name) {
   writeJson(PROFILES_KEY, profiles);
   writeJson(dataKey(profile.id), emptyProfileData());
   return profile;
+}
+
+// Seeds Mark & Hannah as starting profiles on a brand new install so the
+// homepage has something to pick from. Only ever runs once — if both
+// profiles are later deleted on purpose, they won't silently come back.
+export function seedDefaultProfilesIfNeeded() {
+  if (localStorage.getItem(SEEDED_KEY)) return;
+  localStorage.setItem(SEEDED_KEY, "1");
+  if (listProfiles().length > 0) return;
+  for (const name of DEFAULT_PROFILE_NAMES) createProfile(name);
 }
 
 export function renameProfile(id, name) {

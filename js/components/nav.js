@@ -41,7 +41,7 @@ export function renderHeader(title = "FitTrack") {
   const header = document.getElementById("app-header");
   const profile = getCurrentProfile();
   header.innerHTML = `
-    <div class="header-title">${title}</div>
+    <a href="#/profiles" class="header-title" title="Switch profile">${title}</a>
     ${
       profile
         ? `<a href="#/more" class="header-profile" style="--avatar-color:${profile.color}" title="${profile.name}">

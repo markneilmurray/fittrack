@@ -10,10 +10,11 @@ export function renderProfiles(main) {
   function draw() {
     const profiles = listProfiles();
     main.innerHTML = `
-      <div class="center" style="padding-top: 12vh;">
-        <div style="font-size:40px;">🏋️</div>
-        <h1 class="page-title" style="margin-top:8px;">FitTrack</h1>
-        <p class="page-subtitle">Who's training today?</p>
+      <div class="center" style="padding-top: 10vh;">
+        <div style="font-size:44px;">🏋️</div>
+        <h1 class="page-title" style="margin-top:10px; font-size:30px;">FitTrack</h1>
+        <p class="muted" style="margin-top:2px;">Strength &amp; cardio, all in one place</p>
+        <p class="page-subtitle mt-16">Who's training today?</p>
       </div>
       <div class="profile-grid" id="profile-grid">
         ${profiles
