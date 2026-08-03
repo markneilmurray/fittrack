@@ -27,6 +27,7 @@ function emptyProfileData() {
     water: {},
     draft: null,
     favorites: [],
+    foodSearches: [],
     customTemplates: {},
     lastInsights: null,
     // When this profile's data last changed locally — persisted (unlike a
@@ -355,6 +356,69 @@ export function updateFoodEntry(id, patch) {
   const entry = d.food.find((e) => e.id === id);
   if (entry) Object.assign(entry, patch);
   persist();
+}
+
+// ---- Food search cache (past AI lookups, reused to skip repeat AI calls) ----
+
+function normalizeFoodQuery(q) {
+  return (q || "").trim().toLowerCase();
+}
+
+export function getFoodSearchCache() {
+  return ensureCache().foodSearches || [];
+}
+
+// Exact match on the normalized query — used so re-typing exactly what was
+// searched before (e.g. "cup of tea") can skip the AI call entirely.
+export function getExactFoodSearch(query) {
+  const norm = normalizeFoodQuery(query);
+  if (!norm) return null;
+  return getFoodSearchCache().find((s) => s.query === norm) || null;
+}
+
+// Substring match for the live typeahead suggestions, most-used first.
+export function searchFoodCache(query) {
+  const norm = normalizeFoodQuery(query);
+  if (!norm) return [];
+  return getFoodSearchCache()
+    .filter((s) => s.query.includes(norm))
+    .sort((a, b) => b.useCount - a.useCount)
+    .slice(0, 5);
+}
+
+export function getFavoriteFoodSearches() {
+  return getFoodSearchCache()
+    .filter((s) => s.favorite)
+    .sort((a, b) => b.useCount - a.useCount)
+    .slice(0, 5);
+}
+
+// Upserts by normalized query text, bumping its use count each time it's
+// reused (from a fresh AI lookup, a cache hit, or a quick-add tap) so
+// favorites/suggestions naturally surface what's actually used most.
+export function saveFoodSearch({ query, name, calories, protein, carbs, fat }) {
+  const norm = normalizeFoodQuery(query);
+  if (!norm) return null;
+  const d = ensureCache();
+  d.foodSearches = d.foodSearches || [];
+  let entry = d.foodSearches.find((s) => s.query === norm);
+  if (entry) {
+    Object.assign(entry, { name, calories, protein, carbs, fat, useCount: entry.useCount + 1, lastUsedAt: Date.now() });
+  } else {
+    entry = { id: uid(), query: norm, name, calories, protein, carbs, fat, useCount: 1, favorite: false, lastUsedAt: Date.now() };
+    d.foodSearches.push(entry);
+  }
+  persist();
+  return entry;
+}
+
+export function toggleFavoriteFoodSearch(id) {
+  const d = ensureCache();
+  const entry = (d.foodSearches || []).find((s) => s.id === id);
+  if (!entry) return false;
+  entry.favorite = !entry.favorite;
+  persist();
+  return entry.favorite;
 }
 
 // ---- Water (count of 500ml bottles per day) ----

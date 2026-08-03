@@ -1,4 +1,16 @@
-import { getData, addFoodEntry, deleteFoodEntry, getWaterCount, setWaterCount } from "../store.js";
+import {
+  getData,
+  addFoodEntry,
+  deleteFoodEntry,
+  getWaterCount,
+  setWaterCount,
+  getFoodSearchCache,
+  searchFoodCache,
+  getExactFoodSearch,
+  getFavoriteFoodSearches,
+  saveFoodSearch,
+  toggleFavoriteFoodSearch,
+} from "../store.js";
 import { compressImage, blobToBase64 } from "../db.js";
 import { todayStr, addDays, formatDate, escapeHtml } from "../utils.js";
 import { ring } from "../components/charts.js";
@@ -22,6 +34,7 @@ export function renderFood(main) {
     const waterGoal = data.settings.waterGoalDrops || 8;
     const waterCount = getWaterCount(viewDate);
     const waterRowSize = Math.max(waterGoal, waterCount);
+    const favoriteSearches = getFavoriteFoodSearches();
 
     main.innerHTML = `
       <div class="row-between section">
@@ -52,6 +65,27 @@ export function renderFood(main) {
         </div>
         <p class="small faint mt-8" style="margin-bottom:0;">Each drop is 250ml — aim for 2-2.5L a day. Tap a drop to mark up to it, or + to log one more.</p>
       </div>
+
+      ${
+        favoriteSearches.length
+          ? `
+      <div class="section">
+        <div class="section-title mb-8">Quick add</div>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          ${favoriteSearches
+            .map(
+              (f) => `
+            <button class="btn btn-secondary" data-quick-add="${f.id}" style="font-weight:600;">
+              ${icons.starFilled} ${escapeHtml(f.name)} · ${f.calories || 0} kcal
+            </button>
+          `
+            )
+            .join("")}
+        </div>
+      </div>
+      `
+          : ""
+      }
 
       <div class="section">
         <div class="section-head"><div class="section-title">Entries</div></div>
@@ -90,6 +124,24 @@ export function renderFood(main) {
       }
     });
     document.getElementById("add-food-btn").addEventListener("click", openAddModal);
+    main.querySelectorAll("[data-quick-add]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const entry = getFoodSearchCache().find((s) => s.id === btn.dataset.quickAdd);
+        if (!entry) return;
+        addFoodEntry({
+          date: viewDate,
+          name: entry.name,
+          calories: entry.calories,
+          protein: entry.protein,
+          carbs: entry.carbs,
+          fat: entry.fat,
+          time: new Date().toTimeString().slice(0, 5),
+        });
+        saveFoodSearch(entry);
+        toast(`Added ${entry.name}`, { type: "success" });
+        draw();
+      })
+    );
     main.querySelectorAll("[data-bottle]").forEach((btn) =>
       btn.addEventListener("click", () => {
         const i = Number(btn.dataset.bottle);
@@ -118,7 +170,8 @@ export function renderFood(main) {
       <div class="modal-title">Add food</div>
       <div class="field">
         <label>Food / meal</label>
-        <input class="input" id="f-name" placeholder="e.g. Chicken salad, a bourbon biscuit, cup of tea" />
+        <input class="input" id="f-name" placeholder="e.g. Chicken salad, a bourbon biscuit, cup of tea" autocomplete="off" />
+        <div id="food-suggestions" class="stack" style="gap:4px; margin-top:6px;"></div>
       </div>
       <button type="button" class="btn btn-primary btn-block" id="lookup-btn">${icons.sparkle} Look up calories for this</button>
       <p class="small faint mt-8 mb-12">Uses AI, nothing saved but the numbers. Rough guess — check the fields below.</p>
@@ -146,6 +199,53 @@ export function renderFood(main) {
 
     function setup(card) {
       const nameInput = card.querySelector("#f-name");
+      const suggestionsBox = card.querySelector("#food-suggestions");
+
+      function fillFields(entry) {
+        card.querySelector("#f-cal").value = entry.calories ?? "";
+        card.querySelector("#f-protein").value = entry.protein ?? "";
+        card.querySelector("#f-carbs").value = entry.carbs ?? "";
+        card.querySelector("#f-fat").value = entry.fat ?? "";
+      }
+
+      function renderSuggestions() {
+        const matches = searchFoodCache(nameInput.value);
+        suggestionsBox.innerHTML = matches
+          .map(
+            (m) => `
+          <div class="list-item" data-suggestion="${m.id}" style="cursor:pointer; padding:8px 12px;">
+            <div class="list-item-body">
+              <div class="list-item-title" style="font-size:13px;">${escapeHtml(m.name)}</div>
+              <div class="list-item-sub">${m.calories || 0} kcal · from a past search</div>
+            </div>
+            <button type="button" class="btn-icon fav-btn-inline ${m.favorite ? "active" : ""}" data-fav-toggle="${m.id}" title="Favourite">${
+              m.favorite ? icons.starFilled : icons.star
+            }</button>
+          </div>
+        `
+          )
+          .join("");
+        suggestionsBox.querySelectorAll("[data-suggestion]").forEach((row) =>
+          row.addEventListener("click", (e) => {
+            if (e.target.closest("[data-fav-toggle]")) return;
+            const entry = matches.find((m) => m.id === row.dataset.suggestion);
+            if (!entry) return;
+            nameInput.value = entry.name;
+            fillFields(entry);
+            saveFoodSearch(entry);
+            suggestionsBox.innerHTML = "";
+            toast("Filled in from a saved search — no AI call needed", { type: "success" });
+          })
+        );
+        suggestionsBox.querySelectorAll("[data-fav-toggle]").forEach((btn) =>
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFavoriteFoodSearch(btn.dataset.favToggle);
+            renderSuggestions();
+          })
+        );
+      }
+      nameInput.addEventListener("input", renderSuggestions);
 
       const lookupBtn = card.querySelector("#lookup-btn");
       const lookupBtnLabel = lookupBtn.innerHTML;
@@ -156,15 +256,21 @@ export function renderFood(main) {
           toast("Type what you ate first");
           return;
         }
+        const cached = getExactFoodSearch(query);
+        if (cached) {
+          fillFields(cached);
+          saveFoodSearch(cached);
+          suggestionsBox.innerHTML = "";
+          toast("Filled in from a saved search — no AI call needed", { type: "success" });
+          return;
+        }
         lookupBtn.disabled = true;
         lookupBtn.innerHTML = `${icons.sparkle} Looking up…`;
         try {
           const { estimateMealFromText } = await import("../firebase.js");
           const est = await estimateMealFromText(query);
-          card.querySelector("#f-cal").value = est.calories ?? "";
-          card.querySelector("#f-protein").value = est.protein ?? "";
-          card.querySelector("#f-carbs").value = est.carbs ?? "";
-          card.querySelector("#f-fat").value = est.fat ?? "";
+          fillFields(est);
+          saveFoodSearch({ query, name: query, calories: est.calories, protein: est.protein, carbs: est.carbs, fat: est.fat });
           toast("Estimate filled in — check it looks right", { type: "success" });
         } catch (err) {
           console.error(err);
@@ -191,10 +297,10 @@ export function renderFood(main) {
           const { estimateMealFromPhoto } = await import("../firebase.js");
           const est = await estimateMealFromPhoto(base64, "image/jpeg");
           nameInput.value = est.name || "";
-          card.querySelector("#f-cal").value = est.calories ?? "";
-          card.querySelector("#f-protein").value = est.protein ?? "";
-          card.querySelector("#f-carbs").value = est.carbs ?? "";
-          card.querySelector("#f-fat").value = est.fat ?? "";
+          fillFields(est);
+          if (est.name) {
+            saveFoodSearch({ query: est.name, name: est.name, calories: est.calories, protein: est.protein, carbs: est.carbs, fat: est.fat });
+          }
           toast("Estimate filled in — check it looks right", { type: "success" });
         } catch (err) {
           console.error(err);
