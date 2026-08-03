@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fittrack-v9";
+const CACHE_VERSION = "fittrack-v10";
 const IMAGE_CACHE = "fittrack-images-v1";
 
 const PRECACHE_URLS = [
@@ -77,18 +77,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App shell: cache-first, falling back to network, updating cache in the background.
+  // App shell: network-first. Deployed updates must show up on the very next
+  // load while online — falling back to the cache only when there's truly no
+  // connection (e.g. mid-workout with no signal) is what "offline support"
+  // actually needs to mean here; preferring a stale cached copy while online
+  // just means updates silently don't appear until a second reload.
+  // cache: "no-store" is deliberate — GitHub Pages serves these with a
+  // Cache-Control that lets the browser's own HTTP cache silently answer a
+  // plain fetch() from its cache, which would quietly bring back the exact
+  // "shows an old version" bug this network-first strategy exists to fix.
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const network = fetch(request)
-          .then((res) => {
-            if (res.ok) caches.open(CACHE_VERSION).then((cache) => cache.put(request, res.clone()));
-            return res;
-          })
-          .catch(() => cached);
-        return cached || network;
-      })
+      fetch(request, { cache: "no-store" })
+        .then((res) => {
+          if (res.ok) caches.open(CACHE_VERSION).then((cache) => cache.put(request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(request))
     );
   }
 });

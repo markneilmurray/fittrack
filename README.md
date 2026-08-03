@@ -15,7 +15,7 @@ A personal fitness app that runs entirely in your browser — plan and log stren
 - **Weekly insights** — on the home screen, "Get this week's insights" turns your last 7 days of food and training plus your body weight trend into a short, specific set of AI suggestions — including a rough weeks-to-goal estimate if you've set a goal weight.
 - **Multiple profiles** — anyone using this device/browser can create their own profile; everyone's workouts, food log and weight history stay separate.
 - **Optional cloud sync** — link a profile to a Google account (via your own Firebase project) to back it up and keep it in sync across devices. Entirely opt-in — the app works fully offline without it.
-- **Works offline** — installable as a PWA ("Add to Home Screen"), and exercises you've already viewed keep working without a connection.
+- **Works offline** — installable as a PWA ("Add to Home Screen"), and exercises you've already viewed keep working without a connection. While online, updates pushed here always show up on the next reload — the service worker only falls back to its cached copy when there's genuinely no connection, rather than preferring a stale one.
 
 ## Running it locally
 
