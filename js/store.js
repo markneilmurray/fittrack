@@ -389,8 +389,7 @@ export function searchFoodCache(query) {
 export function getFavoriteFoodSearches() {
   return getFoodSearchCache()
     .filter((s) => s.favorite)
-    .sort((a, b) => b.useCount - a.useCount)
-    .slice(0, 5);
+    .sort((a, b) => b.useCount - a.useCount);
 }
 
 // Upserts by normalized query text, bumping its use count each time it's
