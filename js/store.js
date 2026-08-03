@@ -143,11 +143,22 @@ export function getProfileCloudInfo(profileId) {
 let cache = null;
 let cacheId = null;
 
+// Merges stored data over the current defaults. A plain top-level spread
+// isn't enough: "settings" is a nested object, so a profile saved before a
+// new setting (e.g. waterGoalDrops) existed would have its whole old
+// settings object replace the default wholesale, leaving the new field
+// undefined rather than falling back to its default — hit this exact bug
+// adding the water goal setting.
+function mergeWithDefaults(stored) {
+  const defaults = emptyProfileData();
+  return { ...defaults, ...stored, settings: { ...defaults.settings, ...(stored && stored.settings) } };
+}
+
 function ensureCache() {
   const id = getCurrentProfileId();
   if (!id) throw new Error("No active profile");
   if (cache && cacheId === id) return cache;
-  cache = { ...emptyProfileData(), ...readJson(dataKey(id), emptyProfileData()) };
+  cache = mergeWithDefaults(readJson(dataKey(id), emptyProfileData()));
   cacheId = id;
   return cache;
 }
@@ -176,7 +187,7 @@ export function getData() {
 export function replaceCurrentProfileData(newData) {
   const id = getCurrentProfileId();
   if (!id) return;
-  cache = { ...emptyProfileData(), ...newData };
+  cache = mergeWithDefaults(newData);
   cacheId = id;
   writeJson(dataKey(id), cache);
 }

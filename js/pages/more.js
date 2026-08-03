@@ -81,9 +81,12 @@ export function renderMore(main) {
         <div class="section-title mb-8">Water</div>
         <div class="card">
           <div class="field" style="margin-bottom:0;">
-            <label>Daily water goal (250ml drops)</label>
-            <input class="input" id="goal-water" type="number" min="1" max="20" value="${data.settings.waterGoalDrops}" />
-            <p class="small faint mt-8" style="margin-bottom:0;">8-10 drops (2-2.5L) is a commonly recommended range.</p>
+            <label>Daily water goal</label>
+            <div class="input-row">
+              <input class="input" id="goal-water-litres" type="number" min="0.25" step="0.25" value="${Math.round((data.settings.waterGoalDrops || 8) * 0.25 * 100) / 100}" />
+              <span class="input" style="flex:0 0 auto; width:44px; text-align:center; background:var(--surface); pointer-events:none;">L</span>
+            </div>
+            <p class="small faint mt-8" style="margin-bottom:0;">= <span id="goal-water-drops">${data.settings.waterGoalDrops || 8}</span> drops of 250ml each. 2-2.5L is a commonly recommended range.</p>
           </div>
         </div>
       </div>
@@ -135,7 +138,17 @@ export function renderMore(main) {
     document.getElementById("goal-strength").addEventListener("change", (e) => updateSettings({ weeklyStrengthGoal: Number(e.target.value) || 0 }));
     document.getElementById("goal-cardio").addEventListener("change", (e) => updateSettings({ weeklyCardioGoal: Number(e.target.value) || 0 }));
     document.getElementById("goal-cal").addEventListener("change", (e) => updateSettings({ calorieGoal: Number(e.target.value) || 0 }));
-    document.getElementById("goal-water").addEventListener("change", (e) => updateSettings({ waterGoalDrops: Number(e.target.value) || 8 }));
+    const goalWaterLitresInput = document.getElementById("goal-water-litres");
+    const goalWaterDropsLabel = document.getElementById("goal-water-drops");
+    function litresToDrops(litres) {
+      return Math.max(1, Math.round((Number(litres) || 0) / 0.25));
+    }
+    goalWaterLitresInput.addEventListener("input", (e) => {
+      goalWaterDropsLabel.textContent = litresToDrops(e.target.value);
+    });
+    goalWaterLitresInput.addEventListener("change", (e) => {
+      updateSettings({ waterGoalDrops: litresToDrops(e.target.value) });
+    });
     main.querySelectorAll("[data-unit]").forEach((chip) =>
       chip.addEventListener("click", () => {
         updateSettings({ unit: chip.dataset.unit });

@@ -11,7 +11,7 @@ A personal fitness app that runs entirely in your browser — plan and log stren
 - **Calendar check-off** — tap any day to mark it a workout day or a rest day, see your streak and monthly totals.
 - **Body weight tracking** — log weigh-ins, see a trend chart, set a goal weight.
 - **Food log** — log meals with calories and macros against a daily goal. Type what you ate and tap **"Look up calories for this"** for an AI estimate (handles casual descriptions like "a bourbon biscuit" or "cup of tea with milk"), or tap **"Estimate from a photo"** to do the same from a picture instead — the photo is sent once for the estimate and never saved anywhere. See **AI meal estimate** below.
-- **Water tracking** — on the Food page, tap 250ml "drops" up to your daily goal (defaults to 8, ~2L) or hit **+** to log more than your default if you've had extra.
+- **Water tracking** — on the Food page, tap 250ml "drops" up to your daily goal (defaults to 8, ~2L) or hit **+** to log more than your default if you've had extra. Set your own goal in litres under **More → Water**.
 - **Weekly insights** — on the home screen, "Get this week's insights" turns your last 7 days of food and training plus your body weight trend into a short, specific set of AI suggestions — including a rough weeks-to-goal estimate if you've set a goal weight.
 - **Multiple profiles** — anyone using this device/browser can create their own profile; everyone's workouts, food log and weight history stay separate.
 - **Optional cloud sync** — link a profile to a Google account (via your own Firebase project) to back it up and keep it in sync across devices. Entirely opt-in — the app works fully offline without it.
