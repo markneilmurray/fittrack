@@ -293,6 +293,10 @@ body.no-nav #app-nav { display: none; }
 .last-time-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--primary); background: var(--primary-tint); padding: 3px 8px; border-radius: 999px; margin-top: 4px; }
 .remove-ex-btn { color: var(--text-faint); }
 
+.water-bottle-btn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-faint); display: flex; align-items: center; justify-content: center; }
+.water-bottle-btn svg { width: 17px; height: 17px; }
+.water-bottle-btn.filled { background: var(--cardio-tint); border-color: transparent; color: var(--cardio); }
+
 /* Calendar */
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .cal-dow { text-align: center; font-size: 11px; color: var(--text-faint); font-weight: 700; padding-bottom: 4px; }

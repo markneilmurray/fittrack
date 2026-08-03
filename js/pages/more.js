@@ -78,6 +78,17 @@ export function renderMore(main) {
       </div>
 
       <div class="section">
+        <div class="section-title mb-8">Water</div>
+        <div class="card">
+          <div class="field" style="margin-bottom:0;">
+            <label>Daily water goal (250ml drops)</label>
+            <input class="input" id="goal-water" type="number" min="1" max="20" value="${data.settings.waterGoalDrops}" />
+            <p class="small faint mt-8" style="margin-bottom:0;">8-10 drops (2-2.5L) is a commonly recommended range.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
         <div class="section-title mb-8">Units</div>
         <div class="card row" style="gap:8px;">
           <div class="chip ${data.settings.unit === "kg" ? "active" : ""}" data-unit="kg">kg</div>
@@ -124,6 +135,7 @@ export function renderMore(main) {
     document.getElementById("goal-strength").addEventListener("change", (e) => updateSettings({ weeklyStrengthGoal: Number(e.target.value) || 0 }));
     document.getElementById("goal-cardio").addEventListener("change", (e) => updateSettings({ weeklyCardioGoal: Number(e.target.value) || 0 }));
     document.getElementById("goal-cal").addEventListener("change", (e) => updateSettings({ calorieGoal: Number(e.target.value) || 0 }));
+    document.getElementById("goal-water").addEventListener("change", (e) => updateSettings({ waterGoalDrops: Number(e.target.value) || 8 }));
     main.querySelectorAll("[data-unit]").forEach((chip) =>
       chip.addEventListener("click", () => {
         updateSettings({ unit: chip.dataset.unit });

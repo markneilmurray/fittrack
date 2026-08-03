@@ -1,4 +1,4 @@
-import { getData, addFoodEntry, deleteFoodEntry } from "../store.js";
+import { getData, addFoodEntry, deleteFoodEntry, getWaterCount, setWaterCount } from "../store.js";
 import { compressImage, blobToBase64 } from "../db.js";
 import { todayStr, addDays, formatDate, escapeHtml } from "../utils.js";
 import { ring } from "../components/charts.js";
@@ -19,6 +19,10 @@ export function renderFood(main) {
     const carbsSum = entries.reduce((s, e) => s + (Number(e.carbs) || 0), 0);
     const fatSum = entries.reduce((s, e) => s + (Number(e.fat) || 0), 0);
 
+    const waterGoal = data.settings.waterGoalDrops || 8;
+    const waterCount = getWaterCount(viewDate);
+    const waterRowSize = Math.max(waterGoal, waterCount);
+
     main.innerHTML = `
       <div class="row-between section">
         <button class="btn-icon" id="prev-day">${icons.chevronLeft}</button>
@@ -35,6 +39,18 @@ export function renderFood(main) {
             ${calGoal && calSum > calGoal ? `<div class="small mt-8" style="color:var(--danger); font-weight:600;">${calSum - calGoal} kcal over goal</div>` : ""}
           </div>
         </div>
+      </div>
+
+      <div class="card section">
+        <div class="row-between mb-8">
+          <div class="row" style="gap:6px; font-weight:800; font-size:15px;">${icons.water} Water</div>
+          <span class="small muted">${waterCount}/${waterGoal} drops (${waterCount * 0.25}L)${waterCount >= waterGoal ? " " + icons.check : ""}</span>
+        </div>
+        <div class="row" style="gap:6px; flex-wrap:wrap;">
+          ${Array.from({ length: waterRowSize }, (_, i) => `<button class="water-bottle-btn ${i < waterCount ? "filled" : ""}" data-bottle="${i}">${icons.water}</button>`).join("")}
+          <button class="water-bottle-btn" id="add-water-btn" title="Add another">${icons.plus}</button>
+        </div>
+        <p class="small faint mt-8" style="margin-bottom:0;">Each drop is 250ml — aim for 2-2.5L a day. Tap a drop to mark up to it, or + to log one more.</p>
       </div>
 
       <div class="section">
@@ -74,6 +90,17 @@ export function renderFood(main) {
       }
     });
     document.getElementById("add-food-btn").addEventListener("click", openAddModal);
+    main.querySelectorAll("[data-bottle]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.bottle);
+        setWaterCount(viewDate, i + 1 === waterCount ? i : i + 1);
+        draw();
+      })
+    );
+    document.getElementById("add-water-btn").addEventListener("click", () => {
+      setWaterCount(viewDate, waterCount + 1);
+      draw();
+    });
     main.querySelectorAll("[data-delete]").forEach((btn) =>
       btn.addEventListener("click", async () => {
         const ok = await confirmDialog("Delete this entry?");

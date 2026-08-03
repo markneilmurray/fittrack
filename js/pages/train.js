@@ -1,8 +1,10 @@
 import { TEMPLATES } from "../data/templates.js";
 import { EXERCISES } from "../data/exercises.js";
-import { getData, setDraft, isTemplateCustomized } from "../store.js";
+import { getData, setDraft, clearDraft, isTemplateCustomized } from "../store.js";
 import { navigate } from "../router.js";
 import { icons } from "../components/icons.js";
+import { confirmDialog } from "../components/modal.js";
+import { toast } from "../components/toast.js";
 import { formatDate, escapeHtml } from "../utils.js";
 
 export function renderTrain(main) {
@@ -19,7 +21,10 @@ export function renderTrain(main) {
                 <div style="font-weight:800;">${draft.status === "active" ? "Workout in progress" : "Session being built"}</div>
                 <div class="muted small mt-8">${draft.exercises.length} exercise${draft.exercises.length === 1 ? "" : "s"} · ${escapeHtml(draft.name || "Custom Session")}</div>
               </div>
-              <button class="btn btn-primary btn-sm" id="resume-btn">Resume</button>
+              <div class="row" style="gap:8px;">
+                <button class="btn btn-primary btn-sm" id="resume-btn">Resume</button>
+                <button class="btn-icon" id="dismiss-draft-btn" title="Discard this session">${icons.x}</button>
+              </div>
             </div>
           </div>`
         : ""
@@ -77,6 +82,17 @@ export function renderTrain(main) {
 
   document.getElementById("resume-btn")?.addEventListener("click", () => {
     navigate(draft.status === "active" ? "/session/active" : "/session/build");
+  });
+  document.getElementById("dismiss-draft-btn")?.addEventListener("click", async () => {
+    const ok = await confirmDialog(
+      draft.status === "active" ? "Discard this workout? Nothing logged will be saved." : "Discard this session?",
+      { okLabel: "Discard" }
+    );
+    if (ok) {
+      clearDraft();
+      toast("Session discarded");
+      renderTrain(main);
+    }
   });
   document.getElementById("custom-btn").addEventListener("click", () => navigate("/session/build"));
   main.querySelectorAll("[data-template]").forEach((el) =>

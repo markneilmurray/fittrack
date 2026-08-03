@@ -17,12 +17,14 @@ function emptyProfileData() {
       weeklyStrengthGoal: 3,
       weeklyCardioGoal: 2,
       goalBodyWeight: null,
+      waterGoalDrops: 8,
     },
     sessions: [],
     calendar: {},
     lastPerformance: {},
     bodyWeight: [],
     food: [],
+    water: {},
     draft: null,
     favorites: [],
     customTemplates: {},
@@ -341,6 +343,19 @@ export function updateFoodEntry(id, patch) {
   const d = ensureCache();
   const entry = d.food.find((e) => e.id === id);
   if (entry) Object.assign(entry, patch);
+  persist();
+}
+
+// ---- Water (count of 500ml bottles per day) ----
+
+export function getWaterCount(date) {
+  return ensureCache().water[date] || 0;
+}
+
+export function setWaterCount(date, count) {
+  const d = ensureCache();
+  if (count > 0) d.water[date] = count;
+  else delete d.water[date];
   persist();
 }
 
