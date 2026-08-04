@@ -105,6 +105,17 @@ export function renderMore(main) {
       </div>
 
       <div class="section">
+        <div class="section-title mb-8">Fruit &amp; veg</div>
+        <div class="card">
+          <div class="field" style="margin-bottom:0;">
+            <label>Daily fruit &amp; veg goal</label>
+            <input class="input" id="goal-fruitveg" type="number" min="5" step="1" value="${data.settings.fruitVegGoal || 5}" />
+            <p class="small faint mt-8" style="margin-bottom:0;">At least 5 portions a day is a commonly recommended minimum.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
         <div class="section-title mb-8">Units</div>
         <div class="card row" style="gap:8px;">
           <div class="chip ${data.settings.unit === "kg" ? "active" : ""}" data-unit="kg">kg</div>
@@ -161,6 +172,11 @@ export function renderMore(main) {
     });
     goalWaterLitresInput.addEventListener("change", (e) => {
       updateSettings({ waterGoalDrops: litresToDrops(e.target.value) });
+    });
+    document.getElementById("goal-fruitveg").addEventListener("change", (e) => {
+      const val = Math.max(5, Number(e.target.value) || 5);
+      e.target.value = val;
+      updateSettings({ fruitVegGoal: val });
     });
     main.querySelectorAll("[data-unit]").forEach((chip) =>
       chip.addEventListener("click", () => {

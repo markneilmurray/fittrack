@@ -296,6 +296,7 @@ body.no-nav #app-nav { display: none; }
 .water-bottle-btn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-faint); display: flex; align-items: center; justify-content: center; }
 .water-bottle-btn svg { width: 17px; height: 17px; }
 .water-bottle-btn.filled { background: var(--cardio-tint); border-color: transparent; color: var(--cardio); }
+.water-bottle-btn.fruitveg-btn.filled { background: var(--success-tint); border-color: transparent; color: var(--success); }
 
 /* Calendar */
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }

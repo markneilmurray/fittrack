@@ -5,6 +5,8 @@ import {
   setFoodEntryQuantity,
   getWaterCount,
   setWaterCount,
+  getFruitVegCount,
+  setFruitVegCount,
   getFoodSearchCache,
   searchFoodCache,
   getExactFoodSearch,
@@ -35,6 +37,9 @@ export function renderFood(main) {
     const waterGoal = data.settings.waterGoalDrops || 8;
     const waterCount = getWaterCount(viewDate);
     const waterRowSize = Math.max(waterGoal, waterCount);
+    const fruitVegGoal = data.settings.fruitVegGoal || 5;
+    const fruitVegCount = getFruitVegCount(viewDate);
+    const fruitVegRowSize = Math.max(fruitVegGoal, fruitVegCount);
     const favoriteSearches = getFavoriteFoodSearches();
 
     main.innerHTML = `
@@ -65,6 +70,21 @@ export function renderFood(main) {
           <button class="water-bottle-btn" id="add-water-btn" title="Add another">${icons.plus}</button>
         </div>
         <p class="small faint mt-8" style="margin-bottom:0;">Each drop is 250ml — aim for 2-2.5L a day. Tap a drop to mark up to it, or + to log one more.</p>
+      </div>
+
+      <div class="card section">
+        <div class="row-between mb-8">
+          <div class="row" style="gap:6px; font-weight:800; font-size:15px;">${icons.fruitVeg} Fruit &amp; veg</div>
+          <span class="small muted">${fruitVegCount}/${fruitVegGoal} portions${fruitVegCount >= fruitVegGoal ? " " + icons.check : ""}</span>
+        </div>
+        <div class="row" style="gap:6px; flex-wrap:wrap;">
+          ${Array.from(
+            { length: fruitVegRowSize },
+            (_, i) => `<button class="water-bottle-btn fruitveg-btn ${i < fruitVegCount ? "filled" : ""}" data-fruitveg="${i}">${icons.fruitVeg}</button>`
+          ).join("")}
+          <button class="water-bottle-btn fruitveg-btn" id="add-fruitveg-btn" title="Add another">${icons.plus}</button>
+        </div>
+        <p class="small faint mt-8" style="margin-bottom:0;">Fills in automatically when you add fruit or veg via AI lookup — tap a portion to mark up to it, or + to add more.</p>
       </div>
 
       ${
@@ -153,6 +173,9 @@ export function renderFood(main) {
           });
           toast(`Added ${fav.name}`, { type: "success" });
         }
+        if (fav.fruitVegPortions) {
+          setFruitVegCount(viewDate, getFruitVegCount(viewDate) + fav.fruitVegPortions);
+        }
         saveFoodSearch(fav);
         draw();
       })
@@ -182,6 +205,17 @@ export function renderFood(main) {
     );
     document.getElementById("add-water-btn").addEventListener("click", () => {
       setWaterCount(viewDate, waterCount + 1);
+      draw();
+    });
+    main.querySelectorAll("[data-fruitveg]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.fruitveg);
+        setFruitVegCount(viewDate, i + 1 === fruitVegCount ? i : i + 1);
+        draw();
+      })
+    );
+    document.getElementById("add-fruitveg-btn").addEventListener("click", () => {
+      setFruitVegCount(viewDate, fruitVegCount + 1);
       draw();
     });
     main.querySelectorAll("[data-delete]").forEach((btn) =>
@@ -231,12 +265,18 @@ export function renderFood(main) {
     function setup(card) {
       const nameInput = card.querySelector("#f-name");
       const suggestionsBox = card.querySelector("#food-suggestions");
+      // Tracks the fruit/veg portions of whatever's currently filled in
+      // (from a cache hit, suggestion, or fresh AI lookup) so Save can bump
+      // the day's fruit & veg count automatically — stays 0 for anything
+      // typed in manually without ever going through fillFields.
+      let currentFruitVegPortions = 0;
 
       function fillFields(entry) {
         card.querySelector("#f-cal").value = entry.calories ?? "";
         card.querySelector("#f-protein").value = entry.protein ?? "";
         card.querySelector("#f-carbs").value = entry.carbs ?? "";
         card.querySelector("#f-fat").value = entry.fat ?? "";
+        currentFruitVegPortions = entry.fruitVegPortions || 0;
       }
 
       function renderSuggestions() {
@@ -301,7 +341,15 @@ export function renderFood(main) {
           const { estimateMealFromText } = await import("../firebase.js");
           const est = await estimateMealFromText(query);
           fillFields(est);
-          saveFoodSearch({ query, name: query, calories: est.calories, protein: est.protein, carbs: est.carbs, fat: est.fat });
+          saveFoodSearch({
+            query,
+            name: query,
+            calories: est.calories,
+            protein: est.protein,
+            carbs: est.carbs,
+            fat: est.fat,
+            fruitVegPortions: est.fruitVegPortions,
+          });
           toast("Estimate filled in — check it looks right", { type: "success" });
         } catch (err) {
           console.error(err);
@@ -330,7 +378,15 @@ export function renderFood(main) {
           nameInput.value = est.name || "";
           fillFields(est);
           if (est.name) {
-            saveFoodSearch({ query: est.name, name: est.name, calories: est.calories, protein: est.protein, carbs: est.carbs, fat: est.fat });
+            saveFoodSearch({
+              query: est.name,
+              name: est.name,
+              calories: est.calories,
+              protein: est.protein,
+              carbs: est.carbs,
+              fat: est.fat,
+              fruitVegPortions: est.fruitVegPortions,
+            });
           }
           toast("Estimate filled in — check it looks right", { type: "success" });
         } catch (err) {
@@ -358,6 +414,9 @@ export function renderFood(main) {
           time: card.querySelector("#f-time").value,
         };
         addFoodEntry(entry);
+        if (currentFruitVegPortions > 0) {
+          setFruitVegCount(viewDate, getFruitVegCount(viewDate) + currentFruitVegPortions);
+        }
         closeModal();
         draw();
       });

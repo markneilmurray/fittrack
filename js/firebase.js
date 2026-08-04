@@ -92,8 +92,11 @@ function getJsonModel() {
 const ESTIMATE_PROMPT = `You estimate calories for a personal food diary from a photo of a meal.
 Look at the photo and give your single best-guess estimate — not a range — for a typical portion as shown.
 Respond with ONLY JSON, no other text, in exactly this shape:
-{"name": "short dish name", "calories": number, "protein": number, "carbs": number, "fat": number}
+{"name": "short dish name", "calories": number, "protein": number, "carbs": number, "fat": number, "fruitVegPortions": number}
 All macros are in grams, calories in kcal, whole numbers.
+fruitVegPortions is how many standard ~80g portions of fruit or vegetables are visible (0 if none) — count
+fruit and vegetables only, not juice, not potatoes/starchy staples, not pulses unless clearly a vegetable
+portion like a bean salad.
 If the photo doesn't show identifiable food, respond with exactly: {"error": "no food detected"}`;
 
 // Takes base64 image data (no data: prefix) — never uploaded or stored,
@@ -110,6 +113,7 @@ export async function estimateMealFromPhoto(base64Data, mimeType) {
   }
   if (parsed.error) throw new Error("Couldn't spot food in that photo — try a clearer angle");
   if (typeof parsed.calories !== "number") throw new Error("Got an unexpected response — try again");
+  parsed.fruitVegPortions = Number(parsed.fruitVegPortions) || 0;
   return parsed;
 }
 
@@ -117,8 +121,11 @@ const NAME_ESTIMATE_PROMPT = `You estimate calories for a personal food diary fr
 it may be vague or casual (e.g. "a cup of tea with milk", "2 slices of toast with butter", "a bourbon biscuit").
 Give your single best-guess estimate for a typical/standard portion — not a range.
 Respond with ONLY JSON, no other text, in exactly this shape:
-{"calories": number, "protein": number, "carbs": number, "fat": number}
+{"calories": number, "protein": number, "carbs": number, "fat": number, "fruitVegPortions": number}
 All macros are in grams, calories in kcal, whole numbers.
+fruitVegPortions is how many standard ~80g portions of fruit or vegetables this contains (0 if none) — e.g.
+one whole fruit, a side salad, a couple of tablespoons of peas. Count fruit and vegetables only, not juice,
+not potatoes/starchy staples, not pulses unless clearly a vegetable portion like a bean salad.
 If the description isn't a recognizable food or drink, respond with exactly: {"error": "not recognized"}
 Food: `;
 
@@ -135,6 +142,7 @@ export async function estimateMealFromText(query) {
   }
   if (parsed.error) throw new Error("Couldn't recognize that — try being more specific");
   if (typeof parsed.calories !== "number") throw new Error("Got an unexpected response — try again");
+  parsed.fruitVegPortions = Number(parsed.fruitVegPortions) || 0;
   return parsed;
 }
 

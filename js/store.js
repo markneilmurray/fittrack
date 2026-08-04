@@ -18,6 +18,7 @@ function emptyProfileData() {
       weeklyCardioGoal: 2,
       goalBodyWeight: null,
       waterGoalDrops: 8,
+      fruitVegGoal: 5,
     },
     sessions: [],
     calendar: {},
@@ -25,6 +26,7 @@ function emptyProfileData() {
     bodyWeight: [],
     food: [],
     water: {},
+    fruitVeg: {},
     draft: null,
     favorites: [],
     foodSearches: [],
@@ -419,16 +421,37 @@ export function getFavoriteFoodSearches() {
 // Upserts by normalized query text, bumping its use count each time it's
 // reused (from a fresh AI lookup, a cache hit, or a quick-add tap) so
 // favorites/suggestions naturally surface what's actually used most.
-export function saveFoodSearch({ query, name, calories, protein, carbs, fat }) {
+export function saveFoodSearch({ query, name, calories, protein, carbs, fat, fruitVegPortions }) {
   const norm = normalizeFoodQuery(query);
   if (!norm) return null;
   const d = ensureCache();
   d.foodSearches = d.foodSearches || [];
   let entry = d.foodSearches.find((s) => s.query === norm);
   if (entry) {
-    Object.assign(entry, { name, calories, protein, carbs, fat, useCount: entry.useCount + 1, lastUsedAt: Date.now() });
+    Object.assign(entry, {
+      name,
+      calories,
+      protein,
+      carbs,
+      fat,
+      fruitVegPortions: fruitVegPortions ?? entry.fruitVegPortions ?? 0,
+      useCount: entry.useCount + 1,
+      lastUsedAt: Date.now(),
+    });
   } else {
-    entry = { id: uid(), query: norm, name, calories, protein, carbs, fat, useCount: 1, favorite: false, lastUsedAt: Date.now() };
+    entry = {
+      id: uid(),
+      query: norm,
+      name,
+      calories,
+      protein,
+      carbs,
+      fat,
+      fruitVegPortions: fruitVegPortions || 0,
+      useCount: 1,
+      favorite: false,
+      lastUsedAt: Date.now(),
+    };
     d.foodSearches.push(entry);
   }
   persist();
@@ -454,6 +477,19 @@ export function setWaterCount(date, count) {
   const d = ensureCache();
   if (count > 0) d.water[date] = count;
   else delete d.water[date];
+  persist();
+}
+
+// ---- Fruit & veg (portion count per day) ----
+
+export function getFruitVegCount(date) {
+  return ensureCache().fruitVeg[date] || 0;
+}
+
+export function setFruitVegCount(date, count) {
+  const d = ensureCache();
+  if (count > 0) d.fruitVeg[date] = count;
+  else delete d.fruitVeg[date];
   persist();
 }
 
