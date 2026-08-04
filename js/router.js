@@ -62,8 +62,18 @@ function dispatch() {
       const params = {};
       r.paramNames.forEach((name, i) => (params[name] = decodeURIComponent(match[i + 1])));
       const query = Object.fromEntries(new URLSearchParams(path.split("?")[1] || ""));
-      const result = r.handler({ ...params, query });
-      if (typeof result === "function") currentCleanup = result;
+      const myToken = navToken;
+      // Route handlers are async, so calling one always synchronously returns
+      // a Promise — awaiting it here (rather than checking the return value
+      // directly) is what actually lets a handler register a cleanup function
+      // for things like long-lived subscriptions. Still guarded by navToken:
+      // if the user has navigated on again by the time this settles, the
+      // resolved cleanup belongs to an already-abandoned render and must not
+      // overwrite whatever cleanup the newer route already registered.
+      Promise.resolve(r.handler({ ...params, query })).then((result) => {
+        if (navToken !== myToken) return;
+        if (typeof result === "function") currentCleanup = result;
+      });
       window.scrollTo(0, 0);
       return;
     }

@@ -157,7 +157,7 @@ route(
     const token = getNavToken();
     const { renderMore } = await import("./pages/more.js");
     if (!isCurrentNav(token)) return;
-    renderMore(main);
+    return renderMore(main);
   })
 );
 

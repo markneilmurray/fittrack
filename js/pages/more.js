@@ -16,14 +16,27 @@ const STATUS_LABEL = {
 export function renderMore(main) {
   let syncMod = null;
   let unsubscribeStatus = null;
+  // Set once the user has navigated away from this page — guards both the
+  // async sync.js import below and the onSyncStatusChange subscription it
+  // registers, neither of which the router can cancel on its own. Without
+  // this, a sync status change firing after leaving More would still run
+  // this closure's draw() and overwrite whatever page is now showing with
+  // More's markup (nav/title would stay correct since those are only set by
+  // the router, making it look like the wrong page under the right tab).
+  let cancelled = false;
 
   import("../sync.js")
     .then((m) => {
+      if (cancelled) return;
       syncMod = m;
-      unsubscribeStatus = m.onSyncStatusChange(() => draw());
+      unsubscribeStatus = m.onSyncStatusChange(() => {
+        if (!cancelled) draw();
+      });
       draw();
     })
-    .catch(() => draw());
+    .catch(() => {
+      if (!cancelled) draw();
+    });
 
   function draw() {
     const profile = getCurrentProfile();
@@ -314,4 +327,9 @@ export function renderMore(main) {
       }
     });
   }
+
+  return () => {
+    cancelled = true;
+    if (unsubscribeStatus) unsubscribeStatus();
+  };
 }
