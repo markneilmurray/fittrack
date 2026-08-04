@@ -16,6 +16,9 @@ const STATUS_LABEL = {
 export function renderMore(main) {
   let syncMod = null;
   let unsubscribeStatus = null;
+  let lockMod = null;
+  let firebaseMod = null;
+  let bioAvailable = false;
   // Set once the user has navigated away from this page — guards both the
   // async sync.js import below and the onSyncStatusChange subscription it
   // registers, neither of which the router can cancel on its own. Without
@@ -37,6 +40,13 @@ export function renderMore(main) {
     .catch(() => {
       if (!cancelled) draw();
     });
+  Promise.all([import("../lock.js"), import("../firebase.js")]).then(async ([lm, fm]) => {
+    if (cancelled) return;
+    lockMod = lm;
+    firebaseMod = fm;
+    bioAvailable = await lm.isBiometricAvailable();
+    if (!cancelled) draw();
+  });
 
   function draw() {
     const profile = getCurrentProfile();
@@ -61,6 +71,13 @@ export function renderMore(main) {
         <div class="section-title mb-8">Cloud sync</div>
         <div class="card">
           ${cloudSyncBody(profile, syncMod)}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title mb-8">App lock</div>
+        <div class="card">
+          ${appLockBody()}
         </div>
       </div>
 
@@ -152,6 +169,7 @@ export function renderMore(main) {
     document.getElementById("rename-btn").addEventListener("click", () => openRenameModal(profile));
     document.getElementById("switch-btn").addEventListener("click", () => navigate("/profiles"));
     wireCloudSyncButtons(profile);
+    wireAppLockButtons();
     document.getElementById("delete-profile-btn").addEventListener("click", async () => {
       const ok = await confirmDialog(`Delete <strong>${escapeHtml(profile.name)}</strong>? This permanently removes all their data.`);
       if (ok) {
@@ -256,6 +274,35 @@ export function renderMore(main) {
     `;
   }
 
+  function appLockBody() {
+    if (!lockMod) return `<p class="small muted">Loading…</p>`;
+    const enabled = lockMod.isLockEnabled();
+    if (!enabled) {
+      return `
+        <p class="small muted mb-12">Require signing in with Google (then Face ID / fingerprint) before FitTrack shows any profiles. This only guards against someone picking up the device — everything still lives in this browser, so clearing site data always resets it.</p>
+        <button class="btn btn-secondary btn-block" id="enable-lock-btn">${icons.upload} Turn on app lock</button>
+      `;
+    }
+    const email = firebaseMod?.auth?.currentUser?.email;
+    const hasBio = lockMod.hasBiometricCredential();
+    return `
+      <div class="row-between mb-8">
+        <div>
+          <div style="font-weight:700; color:var(--success);">On</div>
+          ${email ? `<div class="small muted">${escapeHtml(email)}</div>` : ""}
+        </div>
+      </div>
+      <p class="small muted mb-12">
+        Face ID / fingerprint: ${hasBio ? "enabled on this device" : bioAvailable ? "not set up on this device" : "not supported on this device"}
+      </p>
+      ${bioAvailable ? `<button class="btn btn-secondary btn-block mb-8" id="reregister-bio-btn">${hasBio ? "Re-register" : "Enable"} Face ID / fingerprint</button>` : ""}
+      <div class="row" style="gap:8px;">
+        <button class="btn btn-ghost btn-block" id="lock-now-btn">Lock now</button>
+        <button class="btn btn-ghost btn-block" id="disable-lock-btn" style="color:var(--danger);">Turn off</button>
+      </div>
+    `;
+  }
+
   function wireCloudSyncButtons(profile) {
     document.getElementById("link-google-btn")?.addEventListener("click", async (e) => {
       if (!syncMod) return;
@@ -291,6 +338,65 @@ export function renderMore(main) {
       );
       if (ok && syncMod) {
         await syncMod.unlinkCurrentProfile();
+        draw();
+      }
+    });
+  }
+
+  function wireAppLockButtons() {
+    document.getElementById("enable-lock-btn")?.addEventListener("click", async (e) => {
+      if (!lockMod || !firebaseMod) return;
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "Opening Google sign-in…";
+      try {
+        await firebaseMod.signInWithGoogle();
+        lockMod.setLockEnabled(true);
+        lockMod.markUnlockedThisSession();
+        toast("App lock turned on", { type: "success" });
+        if (bioAvailable && !lockMod.hasBiometricCredential()) {
+          const wantsBio = await confirmDialog("Also enable Face ID / fingerprint so you don't need Google sign-in every time?", { okLabel: "Enable" });
+          if (wantsBio) {
+            try {
+              await lockMod.registerBiometricCredential(firebaseMod.auth.currentUser?.email);
+              toast("Face ID / fingerprint enabled", { type: "success" });
+            } catch (err) {
+              console.error(err);
+              toast("Couldn't set that up on this device", { type: "danger" });
+            }
+          }
+        }
+        draw();
+      } catch (err) {
+        console.error(err);
+        if (err?.code !== "auth/popup-closed-by-user" && err?.code !== "auth/cancelled-popup-request") {
+          toast("Couldn't sign in — try again", { type: "danger" });
+        }
+        draw();
+      }
+    });
+    document.getElementById("reregister-bio-btn")?.addEventListener("click", async () => {
+      if (!lockMod || !firebaseMod) return;
+      try {
+        await lockMod.registerBiometricCredential(firebaseMod.auth.currentUser?.email);
+        toast("Face ID / fingerprint enabled", { type: "success" });
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't set that up on this device", { type: "danger" });
+      }
+      draw();
+    });
+    document.getElementById("lock-now-btn")?.addEventListener("click", () => {
+      if (!lockMod) return;
+      lockMod.clearUnlockedThisSession();
+      location.reload();
+    });
+    document.getElementById("disable-lock-btn")?.addEventListener("click", async () => {
+      if (!lockMod) return;
+      const ok = await confirmDialog("Turn off app lock? FitTrack will open directly next time, without requiring sign-in.", { okLabel: "Turn off" });
+      if (ok) {
+        lockMod.setLockEnabled(false);
+        toast("App lock turned off");
         draw();
       }
     });

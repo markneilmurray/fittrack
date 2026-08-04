@@ -176,8 +176,25 @@ notFound(() => {
   main.innerHTML = `<div class="empty-state"><div class="empty-state-title">Page not found</div><a href="#/dashboard" class="link-btn">Go home</a></div>`;
 });
 
-renderNav();
-startRouter();
+function startApp() {
+  renderNav();
+  startRouter();
+}
+
+// App lock (optional, off by default — More → App lock): if enabled and
+// this browser/PWA process hasn't been unlocked since it was last actually
+// closed, show the lock screen instead of starting the router at all, so
+// there's no route to reach (even via a stale deep-link hash) until
+// they've confirmed it's them.
+import("./lock.js").then(({ isLockEnabled, isUnlockedThisSession }) => {
+  if (isLockEnabled() && !isUnlockedThisSession()) {
+    document.body.classList.add("no-nav");
+    document.getElementById("app-header").style.display = "none";
+    import("./pages/lock.js").then(({ renderLock }) => renderLock(main, startApp));
+  } else {
+    startApp();
+  }
+});
 
 // Register service worker for offline app-shell caching (best effort; ignore failures on file:// etc.)
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

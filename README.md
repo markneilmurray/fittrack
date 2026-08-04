@@ -15,6 +15,7 @@ A personal fitness app that runs entirely in your browser — plan and log stren
 - **Fruit & veg tracking** — same idea as water, on the Food page: tap portions up to your daily goal (defaults to 5, minimum 5) or hit **+** for more. Fills in automatically too — the AI calorie lookup (text or photo) also estimates how many fruit/veg portions a food contains, so logging a banana or a side salad ticks the portions off for you. Set your own goal (minimum 5) under **More → Fruit & veg**.
 - **Weekly insights** — on the home screen, "Get this week's insights" turns your last 7 days of food and training plus your body weight trend into a short, specific set of AI suggestions — including a rough weeks-to-goal estimate if you've set a goal weight.
 - **Coach** — a dedicated tab for goal-driven coaching, separate from the general Weekly insights above. Answer a couple of quick questions (main goal, training focus, any notes like an injury) once and it's remembered; "Get this week's report" then gives AI suggestions tailored specifically to that goal — always including at least one specific food callout and one strength/cardio balance steer — plus a **Vs last week** line (computed directly from your own logged stats, no AI) and a **Past weeks** history so you can see how things are trending, not just the latest snapshot. Edit your goal anytime from the Coach tab.
+- **App lock (optional)** — off by default; turn it on under **More → App lock** to require signing in with Google before FitTrack shows any profiles. After the first sign-in, Face ID / fingerprint (if your device supports it) unlocks it quickly on later opens instead of a Google popup every time — it only re-asks after the app has been genuinely closed and reopened, not just backgrounded. See **App lock** below for what this does and doesn't protect against.
 - **Multiple profiles** — anyone using this device/browser can create their own profile; everyone's workouts, food log and weight history stay separate.
 - **Optional cloud sync** — link a profile to a Google account (via your own Firebase project) to back it up and keep it in sync across devices. Entirely opt-in — the app works fully offline without it.
 - **Works offline** — installable as a PWA ("Add to Home Screen"), and exercises you've already viewed keep working without a connection. While online, updates pushed here always show up on the next reload — the service worker only falls back to its cached copy when there's genuinely no connection, rather than preferring a stale one.
@@ -73,6 +74,16 @@ This app is wired up to a Firebase project already (see `js/firebaseConfig.js`).
 5. **Authentication → Settings → Authorized domains** → add the domain you deploy to (e.g. `yourname.github.io`) — `localhost` is allowed by default, so local testing works without this step.
 
 If a profile is never linked, none of this is used — the app doesn't touch the network for anything except loading exercise photos and (if linked) syncing.
+
+## App lock (optional)
+
+Off by default. Turn it on under **More → App lock → Turn on app lock** to require confirming it's you before FitTrack shows any profiles — useful if someone else might pick up the device.
+
+**What it actually does:** sign in with Google once; after that, if your device offers Face ID / Touch ID / a fingerprint reader, you're offered a one-time "enable Face ID / fingerprint" step so future opens use that instead of a Google popup. It re-asks only when the app has been genuinely closed and reopened (backgrounding briefly doesn't trigger it). Manage it anytime from **More → App lock**: re-register the biometric, "Lock now" to test it immediately, or "Turn off" to go back to opening directly.
+
+**What it doesn't do — read this before relying on it:** this is a static, backend-free app — every screen you'd be locking out is just JavaScript reading `localStorage` on this device, there's no server checking anything. The lock is a **privacy shield** against someone casually picking up an unlocked phone and opening the browser tab, not real account-level security against anyone with actual access to the device's browser storage or developer tools. Treat it the same way as a "screen lock" on an app, not a bank vault.
+
+**Recovery if you ever get locked out** (lost access to the Google account, biometric stopped matching, etc.): there is deliberately no bypass button on the lock screen itself — that would defeat the point. The way back in is the same as any other "reset this app" situation: **Settings → [Browser] → Advanced → Website Data → delete site data** for this site clears the lock along with everything else, after which the app opens fresh (an empty profiles list, same as a first-ever install). This is why it's worth using **More → Backup → Export data** to save a JSON backup *before* turning the lock on — if you ever do need to clear site data, importing that backup gets everything back.
 
 ## AI meal estimate (optional)
 
@@ -134,6 +145,7 @@ js/
   firebaseConfig.js        Your Firebase project config (safe to be public)
   firebase.js              Thin Firebase Auth/Firestore/AI Logic wrapper (loaded from CDN)
   sync.js                  Links a profile to Google & keeps it mirrored to Firestore
+  lock.js                  App lock: Google sign-in + WebAuthn (Face ID/fingerprint) gate
   insights.js              Computes weekly stats & drives the AI suggestions
   aiError.js               Shared "make this Gemini error readable" helper
   data/exercises.js        Curated exercise data

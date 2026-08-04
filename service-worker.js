@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fittrack-v19";
+const CACHE_VERSION = "fittrack-v20";
 const IMAGE_CACHE = "fittrack-images-v1";
 
 const PRECACHE_URLS = [
@@ -17,6 +17,7 @@ const PRECACHE_URLS = [
   "./js/firebaseConfig.js",
   "./js/firebase.js",
   "./js/sync.js",
+  "./js/lock.js",
   "./js/insights.js",
   "./js/aiError.js",
   "./js/components/charts.js",
@@ -33,6 +34,7 @@ const PRECACHE_URLS = [
   "./js/pages/exerciseDetail.js",
   "./js/pages/food.js",
   "./js/pages/library.js",
+  "./js/pages/lock.js",
   "./js/pages/more.js",
   "./js/pages/profiles.js",
   "./js/pages/sessionBuild.js",
