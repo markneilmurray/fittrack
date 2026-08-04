@@ -339,7 +339,7 @@ export function deleteBodyWeight(id) {
 
 export function addFoodEntry(entry) {
   const d = ensureCache();
-  const full = { id: uid(), ...entry };
+  const full = { id: uid(), quantity: 1, ...entry };
   d.food.push(full);
   persist();
   return full;
@@ -355,6 +355,21 @@ export function updateFoodEntry(id, patch) {
   const d = ensureCache();
   const entry = d.food.find((e) => e.id === id);
   if (entry) Object.assign(entry, patch);
+  persist();
+}
+
+// calories/protein/carbs/fat stay per-unit; quantity multiplies for display
+// and daily totals — going to 0 removes the entry entirely (equivalent to
+// deleting it), same as a shopping-cart-style stepper.
+export function setFoodEntryQuantity(id, quantity) {
+  const d = ensureCache();
+  const entry = d.food.find((e) => e.id === id);
+  if (!entry) return;
+  if (quantity <= 0) {
+    d.food = d.food.filter((e) => e.id !== id);
+  } else {
+    entry.quantity = quantity;
+  }
   persist();
 }
 

@@ -2,6 +2,7 @@ import {
   getData,
   addFoodEntry,
   deleteFoodEntry,
+  setFoodEntryQuantity,
   getWaterCount,
   setWaterCount,
   getFoodSearchCache,
@@ -26,10 +27,10 @@ export function renderFood(main) {
     const data = getData();
     const entries = data.food.filter((f) => f.date === viewDate).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     const calGoal = data.settings.calorieGoal || 0;
-    const calSum = entries.reduce((s, e) => s + (Number(e.calories) || 0), 0);
-    const proteinSum = entries.reduce((s, e) => s + (Number(e.protein) || 0), 0);
-    const carbsSum = entries.reduce((s, e) => s + (Number(e.carbs) || 0), 0);
-    const fatSum = entries.reduce((s, e) => s + (Number(e.fat) || 0), 0);
+    const calSum = entries.reduce((s, e) => s + (Number(e.calories) || 0) * (e.quantity || 1), 0);
+    const proteinSum = entries.reduce((s, e) => s + (Number(e.protein) || 0) * (e.quantity || 1), 0);
+    const carbsSum = entries.reduce((s, e) => s + (Number(e.carbs) || 0) * (e.quantity || 1), 0);
+    const fatSum = entries.reduce((s, e) => s + (Number(e.fat) || 0) * (e.quantity || 1), 0);
 
     const waterGoal = data.settings.waterGoalDrops || 8;
     const waterCount = getWaterCount(viewDate);
@@ -93,17 +94,23 @@ export function renderFood(main) {
           ${
             entries.length
               ? entries
-                  .map(
-                    (e) => `
+                  .map((e) => {
+                    const qty = e.quantity || 1;
+                    return `
               <div class="list-item">
                 <div class="list-item-body">
                   <div class="list-item-title">${escapeHtml(e.name)}</div>
-                  <div class="list-item-sub">${e.calories || 0} kcal${e.time ? " · " + e.time : ""}</div>
+                  <div class="list-item-sub">${(e.calories || 0) * qty} kcal${e.time ? " · " + e.time : ""}</div>
                 </div>
-                <button class="btn-icon swipe-delete" data-delete="${e.id}">${icons.trash}</button>
+                <div class="row" style="gap:2px; flex:0 0 auto;">
+                  <button class="btn-icon" data-qty-minus="${e.id}" style="width:32px; height:32px;" title="Remove one">${icons.minus}</button>
+                  <span class="small" style="min-width:18px; text-align:center; font-weight:700;">${qty}</span>
+                  <button class="btn-icon" data-qty-plus="${e.id}" style="width:32px; height:32px;" title="Add another">${icons.plus}</button>
+                  <button class="btn-icon swipe-delete" data-delete="${e.id}">${icons.trash}</button>
+                </div>
               </div>
-            `
-                  )
+            `;
+                  })
                   .join("")
               : `<div class="empty-state">${icons.food}<div class="empty-state-title">Nothing logged</div><p class="small">Add what you ate to keep track of your day.</p></div>`
           }
@@ -126,19 +133,43 @@ export function renderFood(main) {
     document.getElementById("add-food-btn").addEventListener("click", openAddModal);
     main.querySelectorAll("[data-quick-add]").forEach((btn) =>
       btn.addEventListener("click", () => {
-        const entry = getFoodSearchCache().find((s) => s.id === btn.dataset.quickAdd);
+        const fav = getFoodSearchCache().find((s) => s.id === btn.dataset.quickAdd);
+        if (!fav) return;
+        // Already logged today? Bump its quantity instead of adding a
+        // duplicate row — repeated taps then read as "another one of this".
+        const existing = entries.find((e) => e.name === fav.name);
+        if (existing) {
+          setFoodEntryQuantity(existing.id, (existing.quantity || 1) + 1);
+          toast(`${fav.name} ×${(existing.quantity || 1) + 1}`, { type: "success" });
+        } else {
+          addFoodEntry({
+            date: viewDate,
+            name: fav.name,
+            calories: fav.calories,
+            protein: fav.protein,
+            carbs: fav.carbs,
+            fat: fav.fat,
+            time: new Date().toTimeString().slice(0, 5),
+          });
+          toast(`Added ${fav.name}`, { type: "success" });
+        }
+        saveFoodSearch(fav);
+        draw();
+      })
+    );
+    main.querySelectorAll("[data-qty-plus]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const entry = entries.find((e) => e.id === btn.dataset.qtyPlus);
         if (!entry) return;
-        addFoodEntry({
-          date: viewDate,
-          name: entry.name,
-          calories: entry.calories,
-          protein: entry.protein,
-          carbs: entry.carbs,
-          fat: entry.fat,
-          time: new Date().toTimeString().slice(0, 5),
-        });
-        saveFoodSearch(entry);
-        toast(`Added ${entry.name}`, { type: "success" });
+        setFoodEntryQuantity(entry.id, (entry.quantity || 1) + 1);
+        draw();
+      })
+    );
+    main.querySelectorAll("[data-qty-minus]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const entry = entries.find((e) => e.id === btn.dataset.qtyMinus);
+        if (!entry) return;
+        setFoodEntryQuantity(entry.id, (entry.quantity || 1) - 1);
         draw();
       })
     );
