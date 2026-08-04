@@ -140,6 +140,17 @@ route(
 );
 
 route(
+  "/coach",
+  requireProfile(async () => {
+    shell({ title: "Coach" });
+    const token = getNavToken();
+    const { renderCoach } = await import("./pages/coach.js");
+    if (!isCurrentNav(token)) return;
+    renderCoach(main);
+  })
+);
+
+route(
   "/weight",
   requireProfile(async () => {
     shell({ title: "Body Weight" });

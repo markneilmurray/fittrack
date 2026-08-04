@@ -91,7 +91,7 @@ export function computeWeeklySummary(data) {
   };
 }
 
-function summaryToText(s) {
+export function summaryToText(s) {
   const lines = [];
   lines.push(`Food logged on ${s.daysLogged} of the last 7 days.`);
   if (s.daysLogged) {

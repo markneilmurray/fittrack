@@ -6,6 +6,7 @@ const TABS = [
   { path: "train", label: "Train", icon: icons.dumbbell },
   { path: "calendar", label: "Calendar", icon: icons.calendar },
   { path: "food", label: "Food", icon: icons.food },
+  { path: "coach", label: "Coach", icon: icons.target },
   { path: "more", label: "More", icon: icons.more },
 ];
 

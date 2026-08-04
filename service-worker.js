@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fittrack-v17";
+const CACHE_VERSION = "fittrack-v18";
 const IMAGE_CACHE = "fittrack-images-v1";
 
 const PRECACHE_URLS = [
@@ -28,6 +28,7 @@ const PRECACHE_URLS = [
   "./js/data/templates.js",
   "./js/pages/activeSession.js",
   "./js/pages/calendar.js",
+  "./js/pages/coach.js",
   "./js/pages/dashboard.js",
   "./js/pages/exerciseDetail.js",
   "./js/pages/food.js",

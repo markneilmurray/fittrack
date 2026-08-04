@@ -30,6 +30,10 @@ function emptyProfileData() {
     foodSearches: [],
     customTemplates: {},
     lastInsights: null,
+    coach: {
+      goals: null,
+      weeklyReports: [],
+    },
     // When this profile's data last changed locally — persisted (unlike a
     // module variable) so sync.js can correctly tell "local is newer than
     // the cloud" even right after a fresh page load, before anything has
@@ -152,7 +156,12 @@ let cacheId = null;
 // adding the water goal setting.
 function mergeWithDefaults(stored) {
   const defaults = emptyProfileData();
-  return { ...defaults, ...stored, settings: { ...defaults.settings, ...(stored && stored.settings) } };
+  return {
+    ...defaults,
+    ...stored,
+    settings: { ...defaults.settings, ...(stored && stored.settings) },
+    coach: { ...defaults.coach, ...(stored && stored.coach) },
+  };
 }
 
 function ensureCache() {
@@ -459,6 +468,42 @@ export function saveInsights(insights) {
   d.lastInsights = { ...insights, generatedAt: new Date().toISOString() };
   persist();
   return d.lastInsights;
+}
+
+// ---- Coach (goal-setting + a weekly report history, separate from the
+// dashboard's own generic "Weekly insights" above) ----
+
+export function getCoachGoals() {
+  return ensureCache().coach?.goals || null;
+}
+
+export function saveCoachGoals(goals) {
+  const d = ensureCache();
+  d.coach = d.coach || { goals: null, weeklyReports: [] };
+  d.coach.goals = { ...goals, updatedAt: new Date().toISOString() };
+  persist();
+  return d.coach.goals;
+}
+
+// Newest first.
+export function getCoachReports() {
+  return [...(ensureCache().coach?.weeklyReports || [])].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+}
+
+// Keyed by calendar week (Monday) so regenerating within the same week
+// replaces that week's entry instead of piling up duplicates — history is
+// then genuinely "one entry per week" for a clean week-over-week compare.
+export function saveCoachReport(report) {
+  const d = ensureCache();
+  d.coach = d.coach || { goals: null, weeklyReports: [] };
+  d.coach.weeklyReports = d.coach.weeklyReports || [];
+  const idx = d.coach.weeklyReports.findIndex((r) => r.weekStart === report.weekStart);
+  if (idx >= 0) d.coach.weeklyReports[idx] = report;
+  else d.coach.weeklyReports.push(report);
+  d.coach.weeklyReports.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  if (d.coach.weeklyReports.length > 12) d.coach.weeklyReports = d.coach.weeklyReports.slice(-12);
+  persist();
+  return report;
 }
 
 // ---- Draft session (in-progress session being built or logged) ----

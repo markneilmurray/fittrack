@@ -177,3 +177,45 @@ export async function generateWeeklyInsights(summary) {
   }
   return parsed;
 }
+
+// Separate from the prefix above — this one is anchored to a goal the
+// person has explicitly told the coach, not just "review my week" in the
+// abstract, so it can give a directly relevant strength/cardio steer.
+const COACH_PROMPT_PREFIX = `You are a supportive personal trainer reviewing someone's own logged data from
+their personal fitness app, covering the last 7 days plus their recent body weight trend. They have told you
+their goal directly (see GOAL below, and any additional notes they added) — every suggestion must be tailored
+specifically to that stated goal, not generic advice that could apply to anyone.
+
+Respond with ONLY JSON, no other text, in exactly this shape:
+{"headline": "one short encouraging sentence summarizing where they're at relative to their goal", "suggestions": ["tip 1", "tip 2", "tip 3"]}
+Give 4 to 6 suggestions, each a single specific sentence, and make sure to include:
+- At least one suggestion naming SPECIFIC foods from their logged list relevant to their goal (e.g. a
+  protein-poor day for someone building muscle, a specific high-calorie item for someone losing weight, or a
+  food choice that's working well and worth repeating) — not just totals in the abstract.
+- At least one clear, direct suggestion on strength vs. cardio balance specifically for their stated goal —
+  whether to do more strength training (naming which muscle groups look under-trained based on their logged
+  exercises, if any) or more cardio, given their actual session counts vs. their goals.
+You are not a doctor: no medical claims or diagnoses, don't tell them to "consult a doctor" unless something in
+the data looks genuinely concerning (e.g. an extremely low calorie intake or a very rapid weight change).
+
+GOAL:
+`;
+
+// goalText describes the person's stated goal/focus/notes (see coach.js);
+// summary is the same plain-text data block insights.js builds. Nothing
+// here is saved or sent anywhere beyond this one request.
+export async function generateCoachReport(goalText, summary) {
+  const model = getJsonModel();
+  const result = await model.generateContent(`${COACH_PROMPT_PREFIX}${goalText}\n\nDATA:\n${summary}`);
+  const text = result.response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Couldn't generate a coaching report — try again");
+  }
+  if (!parsed.headline || !Array.isArray(parsed.suggestions) || !parsed.suggestions.length) {
+    throw new Error("Got an unexpected response — try again");
+  }
+  return parsed;
+}
