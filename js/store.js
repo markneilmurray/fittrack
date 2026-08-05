@@ -393,6 +393,14 @@ export function getLastPerformance(exerciseId) {
   return ensureCache().lastPerformance[exerciseId] || null;
 }
 
+// Sums the optional "calories burned" logged against cardio exercises in
+// every session done on this date — used to add exercise calories back
+// onto the day's food allowance (Food page), the same way MyFitnessPal-
+// style trackers do.
+export function getCaloriesBurnedForDate(date) {
+  return ensureCache().sessions.filter((s) => s.date === date).reduce((sum, s) => sum + (s.exercises || []).reduce((es, e) => es + (Number(e.caloriesBurned) || 0), 0), 0);
+}
+
 // ---- Calendar ----
 
 export function setCalendarDay(date, status) {

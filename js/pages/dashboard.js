@@ -1,4 +1,4 @@
-import { getData, setCalendarDay, getCurrentProfile } from "../store.js";
+import { getData, setCalendarDay, getCurrentProfile, getCaloriesBurnedForDate } from "../store.js";
 import { todayStr, addDays, startOfWeek, formatDate } from "../utils.js";
 import { navigate } from "../router.js";
 import { ring, lineChart } from "../components/charts.js";
@@ -80,7 +80,9 @@ export function renderDashboard(main) {
   const bwPoints = bwSorted.map((e) => ({ x: new Date(e.date).getTime(), y: e.weight, label: e.date.slice(5) }));
 
   const todayFood = data.food.filter((f) => f.date === today);
-  const caloriesToday = todayFood.reduce((sum, f) => sum + (Number(f.calories) || 0), 0);
+  const caloriesToday = todayFood.reduce((sum, f) => sum + (Number(f.calories) || 0) * (f.quantity || 1), 0);
+  const burnedToday = getCaloriesBurnedForDate(today);
+  const adjustedCalorieGoal = data.settings.calorieGoal ? data.settings.calorieGoal + burnedToday : 0;
 
   let balanceMsg = "";
   if (done === 0) {
@@ -157,7 +159,7 @@ export function renderDashboard(main) {
       </div>
       <div class="stat-tile">
         <div class="stat-tile-value">${caloriesToday || 0}</div>
-        <div class="stat-tile-label">Calories today${data.settings.calorieGoal ? ` / ${data.settings.calorieGoal}` : ""}</div>
+        <div class="stat-tile-label">Calories today${adjustedCalorieGoal ? ` / ${adjustedCalorieGoal}` : ""}</div>
       </div>
     </div>
 

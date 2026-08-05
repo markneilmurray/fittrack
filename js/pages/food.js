@@ -13,6 +13,7 @@ import {
   getFavoriteFoodSearches,
   saveFoodSearch,
   toggleFavoriteFoodSearch,
+  getCaloriesBurnedForDate,
 } from "../store.js";
 import { compressImage, blobToBase64 } from "../db.js";
 import { todayStr, addDays, formatDate, escapeHtml } from "../utils.js";
@@ -33,6 +34,8 @@ export function renderFood(main) {
     const proteinSum = entries.reduce((s, e) => s + (Number(e.protein) || 0) * (e.quantity || 1), 0);
     const carbsSum = entries.reduce((s, e) => s + (Number(e.carbs) || 0) * (e.quantity || 1), 0);
     const fatSum = entries.reduce((s, e) => s + (Number(e.fat) || 0) * (e.quantity || 1), 0);
+    const burnedToday = getCaloriesBurnedForDate(viewDate);
+    const adjustedGoal = calGoal + burnedToday;
 
     const waterGoal = data.settings.waterGoalDrops || 8;
     const waterCount = getWaterCount(viewDate);
@@ -51,11 +54,12 @@ export function renderFood(main) {
 
       <div class="card section">
         <div class="row" style="gap:18px;">
-          ${ring({ value: calSum, max: calGoal || calSum || 1, size: 78, stroke: 9, label: `${calSum}` })}
+          ${ring({ value: calSum, max: adjustedGoal || calSum || 1, size: 78, stroke: 9, label: `${calSum}` })}
           <div>
-            <div style="font-weight:800; font-size:15px;">${calSum} ${calGoal ? `/ ${calGoal}` : ""} kcal</div>
+            <div style="font-weight:800; font-size:15px;">${calSum} ${adjustedGoal ? `/ ${adjustedGoal}` : ""} kcal</div>
             <div class="muted small mt-8">P ${proteinSum}g · C ${carbsSum}g · F ${fatSum}g</div>
-            ${calGoal && calSum > calGoal ? `<div class="small mt-8" style="color:var(--danger); font-weight:600;">${calSum - calGoal} kcal over goal</div>` : ""}
+            ${burnedToday > 0 ? `<div class="small mt-8" style="color:var(--success); font-weight:600;">${icons.flame} +${burnedToday} kcal earned from exercise</div>` : ""}
+            ${adjustedGoal && calSum > adjustedGoal ? `<div class="small mt-8" style="color:var(--danger); font-weight:600;">${calSum - adjustedGoal} kcal over allowance</div>` : ""}
           </div>
         </div>
       </div>

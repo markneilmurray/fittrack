@@ -96,7 +96,7 @@ export function renderActiveSession(main) {
     return `
       <div class="session-ex-row">
         <div class="session-ex-head">
-          <img class="session-ex-thumb" src="${ex.images[0]}" alt="" />
+          ${exerciseThumbHtml({ images: ex.images, className: "session-ex-thumb", alt: ex.name, placeholderIcon: icons.heart })}
           <div class="spacer">
             <div class="session-ex-name">${escapeHtml(ex.name)}</div>
             <div class="session-ex-sub">Cardio</div>
@@ -113,6 +113,11 @@ export function renderActiveSession(main) {
             <label>Distance (km, optional)</label>
             <input class="input" type="number" step="0.1" min="0" value="${e.distanceKm ?? ""}" data-cardio-field="${i}:distanceKm" />
           </div>
+        </div>
+        <div class="field mt-8" style="margin-bottom:0;">
+          <label>Calories burned (optional)</label>
+          <input class="input" type="number" min="0" inputmode="numeric" placeholder="e.g. 250" value="${e.caloriesBurned ?? ""}" data-cardio-field="${i}:caloriesBurned" />
+          <p class="small faint mt-8" style="margin-bottom:0;">Added back to today's food allowance once you finish this session.</p>
         </div>
       </div>
     `;
