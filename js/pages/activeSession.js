@@ -1,13 +1,12 @@
-import { EXERCISES } from "../data/exercises.js";
-import { getData, setDraft, clearDraft, addSession, getLastPerformance } from "../store.js";
+import { getData, getAllExercises, setDraft, clearDraft, addSession, getLastPerformance } from "../store.js";
 import { navigate } from "../router.js";
 import { icons } from "../components/icons.js";
 import { confirmDialog } from "../components/modal.js";
 import { toast } from "../components/toast.js";
-import { escapeHtml } from "../utils.js";
+import { escapeHtml, exerciseThumbHtml } from "../utils.js";
 
 function exerciseOf(id) {
-  return EXERCISES.find((e) => e.id === id);
+  return getAllExercises().find((e) => e.id === id);
 }
 
 export function renderActiveSession(main) {
@@ -67,7 +66,7 @@ export function renderActiveSession(main) {
       return `
         <div class="session-ex-row">
           <div class="session-ex-head">
-            <img class="session-ex-thumb" src="${ex.images[0]}" alt="" />
+            ${exerciseThumbHtml({ images: ex.images, className: "session-ex-thumb", alt: ex.name, placeholderIcon: ex.category === "cardio" ? icons.heart : icons.dumbbell })}
             <div class="spacer">
               <div class="session-ex-name">${escapeHtml(ex.name)}</div>
               <div class="session-ex-sub">Target ${e.targetReps} reps</div>

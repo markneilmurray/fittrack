@@ -2287,5 +2287,30 @@ export const EXERCISES = [
       "type": "cardio",
       "durationMin": 20
     }
+  },
+  {
+    "id": "High_Intensity_Interval_Training",
+    "name": "HIIT (High-Intensity Interval Training)",
+    "group": "cardio",
+    "groupLabel": "Cardio",
+    "category": "cardio",
+    "equipment": "other",
+    "level": "intermediate",
+    "primaryMuscles": [
+      "cardiovascular system"
+    ],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Pick an exercise or machine you can push hard on — sprints, a bike, a rower, or a bodyweight circuit all work.",
+      "Warm up for a few minutes before starting.",
+      "Alternate short bursts of near-maximum effort (20-40 seconds) with a slower recovery period (20-60 seconds).",
+      "Repeat for the target duration, keeping effort genuinely high during the work intervals — HIIT is about intensity, not pace.",
+      "Cool down afterwards."
+    ],
+    "images": [],
+    "default": {
+      "type": "cardio",
+      "durationMin": 20
+    }
   }
 ];

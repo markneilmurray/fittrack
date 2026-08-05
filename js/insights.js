@@ -3,9 +3,9 @@
 // AI-written set of suggestions grounded in those stats. Nothing here is
 // sent anywhere except the one summarize-and-suggest request to Gemini.
 import { todayStr, addDays } from "./utils.js";
-import { EXERCISES } from "./data/exercises.js";
+import { getAllExercises } from "./store.js";
 
-const exerciseName = (id) => EXERCISES.find((e) => e.id === id)?.name || id;
+const exerciseName = (id) => getAllExercises().find((e) => e.id === id)?.name || id;
 
 const TREND_WINDOW_DAYS = 28;
 

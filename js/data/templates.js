@@ -94,4 +94,11 @@ export const TEMPLATES = [
     type: "cardio",
     exerciseIds: ["Running_Treadmill", "Rope_Jumping", "Bicycling_Stationary"],
   },
+  {
+    id: "hiit",
+    name: "HIIT",
+    blurb: "High-intensity intervals",
+    type: "cardio",
+    exerciseIds: ["High_Intensity_Interval_Training"],
+  },
 ];

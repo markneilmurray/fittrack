@@ -55,6 +55,17 @@ export function titleCase(str) {
   return str.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Custom exercises (and HIIT) have no photo — renders the usual <img> when
+// one exists, otherwise a placeholder box sized the same way so layouts
+// don't jump, with an icon dropped in by the caller (already has its own
+// icons.js import, so it's passed in rather than imported here).
+export function exerciseThumbHtml({ images, className, alt = "", placeholderIcon = "" }) {
+  if (images && images.length) {
+    return `<img class="${className}" src="${images[0]}" alt="${escapeHtml(alt)}" loading="lazy" />`;
+  }
+  return `<div class="${className} ex-img-placeholder">${placeholderIcon}</div>`;
+}
+
 export function kgToLb(kg) {
   return Math.round(kg * 2.20462 * 10) / 10;
 }

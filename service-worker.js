@@ -1,4 +1,4 @@
-const CACHE_VERSION = "fittrack-v20";
+const CACHE_VERSION = "fittrack-v21";
 const IMAGE_CACHE = "fittrack-images-v1";
 
 const PRECACHE_URLS = [

@@ -1,21 +1,25 @@
-import { EXERCISES } from "../data/exercises.js";
 import { TEMPLATES } from "../data/templates.js";
 import {
   getData,
+  getAllExercises,
   setDraft,
   clearDraft,
   getCustomTemplate,
   saveCustomTemplateFromDraft,
   resetCustomTemplate,
   isTemplateCustomized,
+  getUserTemplate,
+  saveUserTemplate,
+  deleteUserTemplate,
 } from "../store.js";
 import { navigate } from "../router.js";
 import { icons } from "../components/icons.js";
-import { confirmDialog } from "../components/modal.js";
-import { escapeHtml, todayStr } from "../utils.js";
+import { openModal, closeModal, confirmDialog } from "../components/modal.js";
+import { toast } from "../components/toast.js";
+import { escapeHtml, todayStr, exerciseThumbHtml } from "../utils.js";
 
 function exerciseOf(id) {
-  return EXERCISES.find((e) => e.id === id);
+  return getAllExercises().find((e) => e.id === id);
 }
 
 function exerciseEntry(id, item) {
@@ -32,14 +36,18 @@ function exerciseEntry(id, item) {
   };
 }
 
+// templateId may be a built-in TEMPLATES entry or a user-saved one — both
+// route through the same customTemplates override mechanism, so further
+// edits to a session built from either kind get remembered the same way.
 function buildFromTemplate(templateId) {
-  const t = TEMPLATES.find((x) => x.id === templateId);
-  if (!t) return null;
+  const builtIn = TEMPLATES.find((x) => x.id === templateId);
+  const userTemplate = builtIn ? null : getUserTemplate(templateId);
+  if (!builtIn && !userTemplate) return null;
   const custom = getCustomTemplate(templateId);
-  const list = custom ? custom.exercises : t.exerciseIds.map((id) => ({ exerciseId: id }));
+  const list = custom ? custom.exercises : builtIn ? builtIn.exerciseIds.map((id) => ({ exerciseId: id })) : userTemplate.exercises;
   return {
     date: todayStr(),
-    name: t.name,
+    name: (builtIn || userTemplate).name,
     status: "building",
     templateId,
     exercises: list.map((item) => exerciseEntry(item.exerciseId, item)),
@@ -91,7 +99,12 @@ export function renderSessionBuild(main, query = {}) {
                   return `
                   <div class="session-ex-row" data-idx="${i}">
                     <div class="session-ex-head">
-                      <img class="session-ex-thumb" src="${ex.images[0]}" alt="" />
+                      ${exerciseThumbHtml({
+                        images: ex.images,
+                        className: "session-ex-thumb",
+                        alt: ex.name,
+                        placeholderIcon: ex.category === "cardio" ? icons.heart : icons.dumbbell,
+                      })}
                       <div class="spacer">
                         <div class="session-ex-name">${escapeHtml(ex.name)}</div>
                         <div class="session-ex-sub">${
@@ -125,6 +138,17 @@ export function renderSessionBuild(main, query = {}) {
       </div>
 
       <button class="btn btn-secondary btn-block mt-16" id="add-ex-btn">${icons.plus} Add exercise</button>
+
+      ${
+        !draft.templateId && draft.exercises.length
+          ? `<button class="btn btn-secondary btn-block mt-8" id="save-template-btn">${icons.download} Save as a template for next time</button>`
+          : ""
+      }
+      ${
+        draft.templateId && getUserTemplate(draft.templateId)
+          ? `<button class="btn btn-ghost btn-block mt-8" id="delete-template-btn" style="color:var(--danger);">${icons.trash} Delete this saved template</button>`
+          : ""
+      }
 
       <div class="row mt-24" style="gap:10px;">
         <button class="btn btn-ghost" id="cancel-btn">Cancel</button>
@@ -187,6 +211,54 @@ export function renderSessionBuild(main, query = {}) {
       resetCustomTemplate(draft.templateId);
       draft = buildFromTemplate(draft.templateId);
       setDraft(draft);
+      draw();
+    });
+    document.getElementById("save-template-btn")?.addEventListener("click", openSaveTemplateModal);
+    document.getElementById("delete-template-btn")?.addEventListener("click", async () => {
+      const ok = await confirmDialog("Delete this saved template? This session stays as-is, but it won't be remembered as a template anymore.", {
+        okLabel: "Delete",
+      });
+      if (!ok) return;
+      deleteUserTemplate(draft.templateId);
+      delete draft.templateId;
+      persist();
+      draw();
+    });
+  }
+
+  function openSaveTemplateModal() {
+    const card = openModal(
+      `
+      <div class="modal-title">Save as a template</div>
+      <p class="small muted mb-12">It'll show up on the Train tab next to Push Day, Leg Day, etc. so you can start it again without rebuilding it.</p>
+      <div class="field" style="margin-bottom:0;">
+        <label>Template name</label>
+        <input class="input" id="tpl-name" value="${escapeHtml(draft.name || "Custom Session")}" maxlength="40" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close-modal>Cancel</button>
+        <button class="btn btn-primary" id="tpl-save">Save template</button>
+      </div>
+    `,
+      { size: "modal-sm" }
+    );
+    card.querySelector("#tpl-save").addEventListener("click", () => {
+      const name = card.querySelector("#tpl-name").value.trim();
+      if (!name) return;
+      const hasStrength = draft.exercises.some((e) => e.type === "strength");
+      const hasCardio = draft.exercises.some((e) => e.type === "cardio");
+      const type = hasStrength && hasCardio ? "mixed" : hasCardio ? "cardio" : "strength";
+      const exercises = draft.exercises.map((e) =>
+        e.type === "strength"
+          ? { exerciseId: e.exerciseId, type: "strength", setCount: e.sets.length }
+          : { exerciseId: e.exerciseId, type: "cardio", durationMin: e.durationMin }
+      );
+      const template = saveUserTemplate({ name, type, exercises });
+      draft.templateId = template.id;
+      draft.name = name;
+      persist();
+      closeModal();
+      toast("Saved as a template", { type: "success" });
       draw();
     });
   }

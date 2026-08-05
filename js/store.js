@@ -1,4 +1,5 @@
 import { uid, todayStr } from "./utils.js";
+import { EXERCISES } from "./data/exercises.js";
 
 const PROFILES_KEY = "fittrack:profiles";
 const CURRENT_KEY = "fittrack:currentProfile";
@@ -31,6 +32,8 @@ function emptyProfileData() {
     favorites: [],
     foodSearches: [],
     customTemplates: {},
+    userTemplates: [],
+    customExercises: [],
     lastInsights: null,
     coach: {
       goals: null,
@@ -229,6 +232,81 @@ export function toggleFavorite(exerciseId) {
   else d.favorites.push(exerciseId);
   persist();
   return d.favorites.includes(exerciseId);
+}
+
+// ---- Custom exercises (added by the user when the library doesn't have
+// what they're after) — merged with the built-in EXERCISES list wherever an
+// exercise needs to be looked up, via getAllExercises() below. ----
+
+export function getCustomExercises() {
+  return ensureCache().customExercises || [];
+}
+
+// Combined pool every page should look exercises up against, instead of
+// importing EXERCISES directly, so a custom exercise behaves exactly like a
+// built-in one everywhere (library, session builder, exercise detail, etc).
+export function getAllExercises() {
+  return [...EXERCISES, ...getCustomExercises()];
+}
+
+export function addCustomExercise({ name, group, groupLabel, category, equipment, instructions }) {
+  const d = ensureCache();
+  d.customExercises = d.customExercises || [];
+  const entry = {
+    id: `custom-${uid()}`,
+    name,
+    group,
+    groupLabel,
+    category,
+    equipment: equipment || "other",
+    level: "beginner",
+    primaryMuscles: [],
+    secondaryMuscles: [],
+    instructions: instructions && instructions.length ? instructions : ["No instructions added yet."],
+    images: [],
+    isCustom: true,
+    default: category === "cardio" ? { type: "cardio", durationMin: 20 } : { type: "strength", sets: 3, reps: "8-12" },
+  };
+  d.customExercises.push(entry);
+  persist();
+  return entry;
+}
+
+export function deleteCustomExercise(id) {
+  const d = ensureCache();
+  d.customExercises = (d.customExercises || []).filter((e) => e.id !== id);
+  persist();
+}
+
+// ---- User-created templates — a session saved from scratch (not based on
+// a built-in template), distinct from customTemplates above which only
+// overrides a built-in template's exercise list. ----
+
+export function getUserTemplates() {
+  return ensureCache().userTemplates || [];
+}
+
+export function getUserTemplate(id) {
+  return getUserTemplates().find((t) => t.id === id) || null;
+}
+
+export function saveUserTemplate({ id, name, blurb, type, exercises }) {
+  const d = ensureCache();
+  d.userTemplates = d.userTemplates || [];
+  const templateId = id || `custom-${uid()}`;
+  const template = { id: templateId, name, blurb: blurb || "Custom session", type, exercises, updatedAt: new Date().toISOString() };
+  const idx = d.userTemplates.findIndex((t) => t.id === templateId);
+  if (idx >= 0) d.userTemplates[idx] = template;
+  else d.userTemplates.push(template);
+  persist();
+  return template;
+}
+
+export function deleteUserTemplate(id) {
+  const d = ensureCache();
+  d.userTemplates = (d.userTemplates || []).filter((t) => t.id !== id);
+  if (d.customTemplates) delete d.customTemplates[id];
+  persist();
 }
 
 // ---- Custom templates ----

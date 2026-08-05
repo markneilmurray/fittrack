@@ -1,13 +1,12 @@
-import { EXERCISES } from "../data/exercises.js";
-import { getData, getLastPerformance, setDraft, isFavorite, toggleFavorite } from "../store.js";
+import { getAllExercises, getData, getLastPerformance, setDraft, isFavorite, toggleFavorite } from "../store.js";
 import { navigate } from "../router.js";
 import { lineChart } from "../components/charts.js";
 import { icons } from "../components/icons.js";
 import { toast } from "../components/toast.js";
-import { escapeHtml, titleCase } from "../utils.js";
+import { escapeHtml, titleCase, exerciseThumbHtml } from "../utils.js";
 
 export function renderExerciseDetail(main, id) {
-  const ex = EXERCISES.find((e) => e.id === id);
+  const ex = getAllExercises().find((e) => e.id === id);
   if (!ex) {
     main.innerHTML = `<div class="empty-state">Exercise not found.</div>`;
     return;
@@ -43,7 +42,12 @@ export function renderExerciseDetail(main, id) {
         </div>
       </div>
       <div class="detail-img-wrap">
-        <img class="detail-img" src="${ex.images[imgIndex] || ex.images[0]}" alt="${escapeHtml(ex.name)}" />
+        ${exerciseThumbHtml({
+          images: ex.images.length ? [ex.images[imgIndex] || ex.images[0]] : [],
+          className: "detail-img",
+          alt: ex.name,
+          placeholderIcon: ex.category === "cardio" ? icons.heart : icons.dumbbell,
+        })}
         ${
           ex.images.length > 1
             ? `<div class="detail-img-dots">${ex.images.map((_, i) => `<span class="${i === imgIndex ? "active" : ""}" data-dot="${i}"></span>`).join("")}</div>`

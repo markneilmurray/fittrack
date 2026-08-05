@@ -1,16 +1,18 @@
 import { TEMPLATES } from "../data/templates.js";
-import { EXERCISES } from "../data/exercises.js";
-import { getData, setDraft, clearDraft, isTemplateCustomized } from "../store.js";
+import { getData, setDraft, clearDraft, isTemplateCustomized, getUserTemplates, deleteUserTemplate } from "../store.js";
 import { navigate } from "../router.js";
 import { icons } from "../components/icons.js";
 import { confirmDialog } from "../components/modal.js";
 import { toast } from "../components/toast.js";
 import { formatDate, escapeHtml } from "../utils.js";
 
+const TYPE_BADGE = { cardio: "badge-cardio", strength: "badge-strength", mixed: "badge-muted" };
+
 export function renderTrain(main) {
   const data = getData();
   const draft = data.draft;
   const recent = data.sessions.slice(0, 5);
+  const userTemplates = getUserTemplates();
 
   main.innerHTML = `
     ${
@@ -37,7 +39,7 @@ export function renderTrain(main) {
           (t) => `
           <div class="template-card card-tap" data-template="${t.id}">
             <div class="row-between" style="margin-bottom:8px;">
-              <span class="badge ${t.type === "cardio" ? "badge-cardio" : "badge-strength"}">${t.type}</span>
+              <span class="badge ${TYPE_BADGE[t.type] || "badge-strength"}">${t.type}</span>
               ${isTemplateCustomized(t.id) ? `<span class="badge badge-muted">Edited</span>` : ""}
             </div>
             <div class="template-name">${t.name}</div>
@@ -45,6 +47,20 @@ export function renderTrain(main) {
           </div>
         `
         ).join("")}
+        ${userTemplates
+          .map(
+            (t) => `
+          <div class="template-card card-tap" data-template="${t.id}">
+            <div class="row-between" style="margin-bottom:8px;">
+              <span class="badge ${TYPE_BADGE[t.type] || "badge-strength"}">${t.type}</span>
+              <button class="btn-icon" style="width:26px; height:26px;" data-delete-template="${t.id}" title="Delete template">${icons.trash}</button>
+            </div>
+            <div class="template-name">${escapeHtml(t.name)}</div>
+            <div class="template-blurb">${escapeHtml(t.blurb)}</div>
+          </div>
+        `
+          )
+          .join("")}
       </div>
       <button class="btn btn-secondary btn-block mt-12" id="custom-btn">${icons.plus} Custom session</button>
     </div>
@@ -97,6 +113,16 @@ export function renderTrain(main) {
   document.getElementById("custom-btn").addEventListener("click", () => navigate("/session/build"));
   main.querySelectorAll("[data-template]").forEach((el) =>
     el.addEventListener("click", () => navigate(`/session/build?template=${el.dataset.template}`))
+  );
+  main.querySelectorAll("[data-delete-template]").forEach((btn) =>
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const ok = await confirmDialog("Delete this template?", { okLabel: "Delete" });
+      if (ok) {
+        deleteUserTemplate(btn.dataset.deleteTemplate);
+        renderTrain(main);
+      }
+    })
   );
   main.querySelectorAll("[data-repeat]").forEach((el) =>
     el.addEventListener("click", () => repeatSession(el.dataset.repeat))
