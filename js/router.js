@@ -70,8 +70,27 @@ function dispatch() {
       // if the user has navigated on again by the time this settles, the
       // resolved cleanup belongs to an already-abandoned render and must not
       // overwrite whatever cleanup the newer route already registered.
+      //
+      // Raced against a timeout because a route handler's `await import(...)`
+      // can hang forever rather than reject: on an installed iOS PWA, the OS
+      // can suspend an in-flight fetch when the app is backgrounded, and if
+      // that fetch never settles, the browser's module registry is left with
+      // a permanently-pending entry for that URL — every future `import()`
+      // of the same page reuses that same stuck promise, so simply
+      // navigating away and back again can't recover it (matches: works,
+      // then randomly gets stuck on an old page under an otherwise-correct
+      // header, until the app is force-closed and reopened). A full reload
+      // is the only thing that actually clears a stuck module registry, so
+      // do that automatically once it's clearly hung rather than leaving the
+      // screen silently stuck.
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        location.reload();
+      }, 15000);
       Promise.resolve(r.handler({ ...params, query })).then((result) => {
-        if (navToken !== myToken) return;
+        clearTimeout(timeout);
+        if (timedOut || navToken !== myToken) return;
         if (typeof result === "function") currentCleanup = result;
       });
       window.scrollTo(0, 0);
