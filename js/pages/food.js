@@ -246,7 +246,7 @@ export function renderFood(main) {
       <p class="small faint mt-8 mb-12">Uses AI, nothing saved but the numbers. Rough guess — check the fields below.</p>
 
       <button type="button" class="btn btn-secondary btn-block" id="ai-estimate-btn">${icons.camera} Estimate from a photo instead</button>
-      <input type="file" accept="image/*" capture="environment" id="ai-photo-input" style="display:none;" />
+      <input type="file" accept="image/*" id="ai-photo-input" style="display:none;" />
       <p class="small faint mt-8 mb-12">Photo is sent once for the estimate and never saved anywhere.</p>
 
       <div class="input-row">
